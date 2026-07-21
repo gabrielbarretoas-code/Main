@@ -1,0 +1,18 @@
+{
+  "name": "whatsapp-secretary",
+  "version": "1.0.0",
+  "description": "Automação que transforma mensagens do WhatsApp em tarefas organizadas no Todoist, usando a WhatsApp Business Platform (Cloud API) da Meta.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
