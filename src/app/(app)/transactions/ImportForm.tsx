@@ -15,9 +15,9 @@ export default function ImportForm({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ imported: number; skipped: number; error?: string } | null>(
-    null
-  );
+  const [result, setResult] = useState<
+    { imported: number; skipped: number; autoReconciled?: number; error?: string } | null
+  >(null);
 
   return (
     <form
@@ -70,11 +70,15 @@ export default function ImportForm({
             result.error
           ) : (
             <>
-              {result.imported} lançamento(s) importado(s), {result.skipped} ignorado(s).{" "}
+              {result.imported} lançamento(s) importado(s), {result.skipped} ignorado(s)
+              {!!result.autoReconciled && (
+                <> ({result.autoReconciled} identificado(s) como aplicação automática)</>
+              )}
+              .{" "}
               <Link href={`/reconciliation?entity=${entity}`} className="underline font-medium">
                 Ir para Conciliação
               </Link>{" "}
-              para categorizar.
+              para categorizar o resto.
             </>
           )}
         </p>

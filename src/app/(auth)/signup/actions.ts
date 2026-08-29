@@ -3,7 +3,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/auth";
-import { DEFAULT_CATEGORIES, DEFAULT_COST_CENTERS } from "@/lib/defaults";
+import { DEFAULT_CATEGORY_TREE, DEFAULT_COST_CENTERS } from "@/lib/defaults";
 
 export type SignupState = { error?: string };
 
@@ -26,21 +26,45 @@ export async function signup(_prevState: SignupState, formData: FormData): Promi
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
-  await prisma.organization.create({
+  const organization = await prisma.organization.create({
     data: {
       name: organizationName,
       trialEndsAt,
       users: {
         create: { email, name, passwordHash, role: "OWNER" },
       },
-      categories: {
-        create: [...DEFAULT_CATEGORIES],
-      },
       costCenters: {
         create: DEFAULT_COST_CENTERS.map((name) => ({ name })),
       },
     },
   });
+
+  for (const def of DEFAULT_CATEGORY_TREE) {
+    const parent = await prisma.category.create({
+      data: {
+        name: def.name,
+        type: def.type,
+        entity: def.entity,
+        color: def.color,
+        icon: def.icon,
+        organizationId: organization.id,
+      },
+    });
+
+    if (def.children?.length) {
+      await prisma.category.createMany({
+        data: def.children.map((childName) => ({
+          name: childName,
+          type: def.type,
+          entity: def.entity,
+          color: def.color,
+          icon: def.icon,
+          organizationId: organization.id,
+          parentId: parent.id,
+        })),
+      });
+    }
+  }
 
   await signIn("credentials", {
     email,
