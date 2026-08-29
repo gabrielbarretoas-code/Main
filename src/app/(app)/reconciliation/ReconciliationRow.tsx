@@ -4,34 +4,14 @@ import { useState, useTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { confirmReconciliation, quickCreateCategory } from "./actions";
 import { formatCurrency, formatDate } from "@/lib/format";
-import type { Entity, TransactionType } from "@/lib/types";
+import { buildCategoryOptions, type CategoryOption } from "@/lib/categoryOptions";
+import type { Entity } from "@/lib/types";
 import type { TransactionRowData } from "./ReconciliationList";
 
-export type CategoryOption = {
-  id: string;
-  name: string;
-  color: string;
-  parentId: string | null;
-  type: TransactionType;
-};
+export type { CategoryOption };
 type CostCenter = { id: string; name: string };
 
 const NEW_CATEGORY_VALUE = "__new__";
-
-/** Ordena categorias-mãe seguidas das suas subcategorias, com prefixo visual. */
-function buildOptions(categories: CategoryOption[], type: TransactionType) {
-  const sameType = categories.filter((c) => c.type === type);
-  const parents = sameType.filter((c) => !c.parentId);
-  const options: { id: string; label: string }[] = [];
-  for (const p of parents) {
-    options.push({ id: p.id, label: p.name });
-    const children = sameType.filter((c) => c.parentId === p.id);
-    for (const c of children) {
-      options.push({ id: c.id, label: `↳ ${c.name}` });
-    }
-  }
-  return options;
-}
 
 export default function ReconciliationRow({
   transaction,
@@ -64,7 +44,7 @@ export default function ReconciliationRow({
 
   const wasSuggested =
     !wasAlreadyReconciled && suggestedCategoryId !== null && categoryId === suggestedCategoryId;
-  const options = buildOptions(categories, transaction.type);
+  const options = buildCategoryOptions(categories, transaction.type);
 
   function handleCategorySelect(value: string) {
     if (value === NEW_CATEGORY_VALUE) {
@@ -139,7 +119,7 @@ export default function ReconciliationRow({
             value={categoryId}
             onChange={(e) => handleCategorySelect(e.target.value)}
             className={`border rounded-md px-2 py-1.5 text-sm ${
-              wasSuggested ? "border-indigo-300 bg-indigo-50" : "border-slate-300"
+              wasSuggested ? "border-brand-gold bg-brand-gold-light" : "border-slate-300"
             }`}
           >
             <option value="">Selecione a categoria…</option>
@@ -182,7 +162,7 @@ export default function ReconciliationRow({
         )}
 
         {wasSuggested && !creatingCategory && (
-          <span className="text-xs text-indigo-600">sugerido</span>
+          <span className="text-xs text-brand-navy font-medium">sugerido</span>
         )}
 
         <label className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap">
@@ -195,7 +175,7 @@ export default function ReconciliationRow({
             }}
           />
           Transferência / aplicação
-          {suggestedIsTransfer && <span className="text-indigo-600">(sugerido)</span>}
+          {suggestedIsTransfer && <span className="text-brand-navy font-medium">(sugerido)</span>}
         </label>
 
         {entity === "BUSINESS" && !isTransfer && costCenters.length > 0 && (
@@ -220,7 +200,7 @@ export default function ReconciliationRow({
         type="button"
         disabled={pending || (!isTransfer && !categoryId)}
         onClick={handleConfirm}
-        className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 whitespace-nowrap"
+        className="bg-brand-navy text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-brand-navy-light disabled:opacity-40 whitespace-nowrap"
       >
         {wasAlreadyReconciled ? "Salvar" : "Confirmar"}
       </button>

@@ -42,7 +42,7 @@ export default async function CostCentersPage({
             className="border border-slate-300 rounded-md px-3 py-1.5 text-sm"
             placeholder="Ex: Comercial e Vendas"
           />
-          <button className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700">
+          <button className="bg-brand-navy text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-brand-navy-light">
             Adicionar
           </button>
         </form>

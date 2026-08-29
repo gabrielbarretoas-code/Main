@@ -43,7 +43,7 @@ export default function SignupPage() {
 
         <button
           disabled={pending}
-          className="w-full bg-indigo-600 text-white rounded-lg py-2.5 font-medium hover:bg-indigo-700 disabled:opacity-60"
+          className="w-full bg-brand-navy text-white rounded-lg py-2.5 font-medium hover:bg-brand-navy-light disabled:opacity-60"
         >
           {pending ? "Criando..." : "Criar conta"}
         </button>
@@ -51,7 +51,7 @@ export default function SignupPage() {
 
       <p className="text-sm text-slate-500 mt-6 text-center">
         Já tem conta?{" "}
-        <Link href="/login" className="text-indigo-600 font-medium">
+        <Link href="/login" className="text-brand-navy font-medium">
           Entrar
         </Link>
       </p>

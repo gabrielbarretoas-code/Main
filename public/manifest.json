@@ -1,10 +1,10 @@
 {
-  "name": "Finanças - Controle Financeiro",
-  "short_name": "Finanças",
+  "name": "Oportuno Finanças",
+  "short_name": "Oportuno",
   "description": "Controle financeiro pessoal e comercial",
   "start_url": "/dashboard?entity=PERSONAL",
   "display": "standalone",
   "background_color": "#f8fafc",
-  "theme_color": "#4f46e5",
+  "theme_color": "#0e223e",
   "icons": []
 }

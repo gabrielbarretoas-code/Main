@@ -61,7 +61,7 @@ export default async function AccountsPage({
             <input type="checkbox" name="hasAutoInvest" />
             Tem investimento automático de saldo (ex: Rende Fácil, Cofrinho)?
           </label>
-          <button className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700">
+          <button className="bg-brand-navy text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-brand-navy-light">
             Adicionar
           </button>
         </form>
@@ -82,7 +82,7 @@ export default async function AccountsPage({
               <p className="text-xs text-slate-500">
                 {ACCOUNT_TYPE_LABELS[a.type as AccountType]}
                 {a.hasAutoInvest && (
-                  <span className="ml-2 text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                  <span className="ml-2 text-brand-navy bg-brand-gold-light px-1.5 py-0.5 rounded-full">
                     investimento automático
                   </span>
                 )}

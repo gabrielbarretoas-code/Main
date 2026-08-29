@@ -10,6 +10,14 @@ export function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat("pt-BR").format(d);
 }
 
+export function formatDateTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(d);
+}
+
 export const MONTHS_PT = [
   "Janeiro",
   "Fevereiro",
