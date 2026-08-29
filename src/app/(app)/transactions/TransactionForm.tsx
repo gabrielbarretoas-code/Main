@@ -90,7 +90,7 @@ export default function TransactionForm({
       </div>
       <button
         disabled={accounts.length === 0}
-        className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+        className="bg-brand-navy text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-brand-navy-light disabled:opacity-50"
       >
         Adicionar
       </button>

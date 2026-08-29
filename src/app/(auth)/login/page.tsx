@@ -32,7 +32,7 @@ export default function LoginPage() {
 
         <button
           disabled={pending}
-          className="w-full bg-indigo-600 text-white rounded-lg py-2.5 font-medium hover:bg-indigo-700 disabled:opacity-60"
+          className="w-full bg-brand-navy text-white rounded-lg py-2.5 font-medium hover:bg-brand-navy-light disabled:opacity-60"
         >
           {pending ? "Entrando..." : "Entrar"}
         </button>
@@ -40,7 +40,7 @@ export default function LoginPage() {
 
       <p className="text-sm text-slate-500 mt-6 text-center">
         Ainda não tem conta?{" "}
-        <Link href="/signup" className="text-indigo-600 font-medium">
+        <Link href="/signup" className="text-brand-navy font-medium">
           Criar conta grátis
         </Link>
       </p>

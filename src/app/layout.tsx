@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Finanças",
+  title: "Oportuno Finanças",
   description: "Controle financeiro pessoal e comercial",
   manifest: "/manifest.json",
 };

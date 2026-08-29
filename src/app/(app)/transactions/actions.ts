@@ -64,13 +64,59 @@ export async function deleteTransaction(id: string) {
   revalidatePath("/budget");
 }
 
-export async function toggleReconciled(id: string, reconciled: boolean) {
+export type TransactionDetailsUpdate = {
+  reconciled: boolean;
+  reconciledAt: Date | null;
+  updatedAt: Date;
+  categoryId: string | null;
+  costCenterId: string | null;
+  isTransfer: boolean;
+};
+
+export async function updateTransactionDetails(
+  transactionId: string,
+  categoryId: string | null,
+  costCenterId: string | null,
+  isTransfer: boolean
+): Promise<TransactionDetailsUpdate | null> {
   const organizationId = await requireOrganizationId();
-  await prisma.transaction.updateMany({
-    where: { id, organizationId },
-    data: { reconciled },
+
+  const existing = await prisma.transaction.findFirst({ where: { id: transactionId, organizationId } });
+  if (!existing) return null;
+
+  if (categoryId) {
+    const category = await prisma.category.findFirst({ where: { id: categoryId, organizationId } });
+    if (!category) return null;
+  }
+  if (costCenterId) {
+    const costCenter = await prisma.costCenter.findFirst({ where: { id: costCenterId, organizationId } });
+    if (!costCenter) return null;
+  }
+
+  const updated = await prisma.transaction.update({
+    where: { id: transactionId },
+    data: {
+      categoryId: isTransfer ? null : categoryId,
+      costCenterId: isTransfer ? null : costCenterId,
+      isTransfer,
+      reconciled: true,
+      reconciledAt: existing.reconciledAt ?? new Date(),
+    },
   });
+
   revalidatePath("/transactions");
+  revalidatePath("/reconciliation");
+  revalidatePath("/dashboard");
+  revalidatePath("/budget");
+
+  return {
+    reconciled: updated.reconciled,
+    reconciledAt: updated.reconciledAt,
+    updatedAt: updated.updatedAt,
+    categoryId: updated.categoryId,
+    costCenterId: updated.costCenterId,
+    isTransfer: updated.isTransfer,
+  };
 }
 
 type ImportResult = {

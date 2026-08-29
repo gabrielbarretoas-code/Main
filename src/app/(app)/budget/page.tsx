@@ -85,17 +85,17 @@ export default async function BudgetPage({
         </form>
       </div>
 
-      <div className="rounded-xl p-5 shadow-sm bg-gradient-to-br from-indigo-600 to-indigo-800 text-white flex flex-wrap gap-8">
+      <div className="rounded-xl p-5 shadow-sm bg-gradient-to-br from-brand-navy to-brand-navy-dark text-white flex flex-wrap gap-8">
         <div>
-          <p className="text-xs text-indigo-100">Orçado total</p>
+          <p className="text-xs text-slate-300">Orçado total</p>
           <p className="text-2xl font-bold">{formatCurrency(totalPlanned)}</p>
         </div>
         <div>
-          <p className="text-xs text-indigo-100">Realizado total</p>
+          <p className="text-xs text-slate-300">Realizado total</p>
           <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
         </div>
         <div>
-          <p className="text-xs text-indigo-100">Sobra</p>
+          <p className="text-xs text-slate-300">Sobra</p>
           <p className={`text-2xl font-bold ${totalPlanned - totalSpent >= 0 ? "text-emerald-300" : "text-red-300"}`}>
             {formatCurrency(totalPlanned - totalSpent)}
           </p>

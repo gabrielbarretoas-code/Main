@@ -4,11 +4,23 @@
   --background: #f8fafc;
   --foreground: #0f172a;
   color-scheme: light;
+
+  /* Identidade Oportuno */
+  --brand-navy: #0e223e;
+  --brand-navy-dark: #081525;
+  --brand-navy-light: #1c3a63;
+  --brand-gold: #d99d4a;
+  --brand-gold-light: #faf4eb;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-dark: var(--brand-navy-dark);
+  --color-brand-navy-light: var(--brand-navy-light);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-light: var(--brand-gold-light);
 }
 
 html,
@@ -31,6 +43,6 @@ body {
 }
 
 .input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgb(79 70 229 / 0.15);
+  border-color: var(--brand-navy);
+  box-shadow: 0 0 0 3px rgb(14 34 62 / 0.15);
 }

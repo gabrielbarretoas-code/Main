@@ -81,7 +81,7 @@ export default function NewCategoryForm({
             ))}
           </select>
         </div>
-        <button className="bg-indigo-600 text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-200">
+        <button className="bg-brand-navy text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-brand-navy-light shadow-sm">
           Adicionar
         </button>
       </div>
@@ -116,7 +116,7 @@ export default function NewCategoryForm({
                 onClick={() => setIcon(name)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
                   selected
-                    ? "border-indigo-500 bg-indigo-50 text-indigo-600 scale-110 shadow-sm"
+                    ? "border-brand-navy bg-brand-gold-light text-brand-navy scale-110 shadow-sm"
                     : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
                 }`}
               >

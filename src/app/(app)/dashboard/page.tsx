@@ -261,7 +261,7 @@ export default async function DashboardPage({
       {accounts.length === 0 && (
         <p className="text-sm text-slate-500">
           Nenhuma conta cadastrada ainda. Vá em{" "}
-          <a className="text-indigo-600 underline" href={`/accounts?entity=${entity}`}>
+          <a className="text-brand-navy underline" href={`/accounts?entity=${entity}`}>
             Contas
           </a>{" "}
           para criar a primeira.
@@ -309,10 +309,10 @@ function StatCard({
 
   if (highlight) {
     return (
-      <div className="rounded-xl p-5 shadow-sm bg-gradient-to-br from-indigo-600 to-indigo-800 text-white">
+      <div className="rounded-xl p-5 shadow-sm bg-gradient-to-br from-brand-navy to-brand-navy-dark text-white">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-indigo-100">{label}</p>
-          <Icon size={18} className="text-indigo-200" />
+          <p className="text-sm text-slate-300">{label}</p>
+          <Icon size={18} className="text-brand-gold" />
         </div>
         <p className={`text-3xl font-bold ${valueColor}`}>{formatCurrency(value)}</p>
       </div>
