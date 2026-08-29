@@ -25,54 +25,104 @@ enum AccountType {
   INVESTMENT
 }
 
-model Account {
-  id           String        @id @default(cuid())
-  name         String
-  type         AccountType
-  entity       Entity
-  createdAt    DateTime      @default(now())
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum UserRole {
+  OWNER
+  MEMBER
+}
+
+model Organization {
+  id                   String             @id @default(cuid())
+  name                 String
+  whatsappPhone        String?            @unique
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  subscriptionStatus   SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?
+  createdAt            DateTime           @default(now())
+
+  users        User[]
+  accounts     Account[]
+  categories   Category[]
   transactions Transaction[]
+  budgets      Budget[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  passwordHash   String
+  name           String
+  role           UserRole     @default(OWNER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
+
+model Account {
+  id             String        @id @default(cuid())
+  name           String
+  type           AccountType
+  entity         Entity
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  transactions   Transaction[]
+
+  @@index([organizationId])
 }
 
 model Category {
-  id           String            @id @default(cuid())
-  name         String
-  type         TransactionType
-  entity       Entity
-  color        String            @default("#6366f1")
-  transactions Transaction[]
-  budgets      Budget[]
+  id             String          @id @default(cuid())
+  name           String
+  type           TransactionType
+  entity         Entity
+  color          String          @default("#6366f1")
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  budgets        Budget[]
 
-  @@unique([name, type, entity])
+  @@unique([organizationId, name, type, entity])
 }
 
 model Transaction {
-  id          String          @id @default(cuid())
-  date        DateTime
-  description String
-  amount      Float
-  type        TransactionType
-  entity      Entity
-  reconciled  Boolean         @default(false)
-  source      String          @default("manual")
-  accountId   String
-  account     Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  categoryId  String?
-  category    Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdAt   DateTime        @default(now())
+  id             String          @id @default(cuid())
+  date           DateTime
+  description    String
+  amount         Float
+  type           TransactionType
+  entity         Entity
+  reconciled     Boolean         @default(false)
+  source         String          @default("manual")
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
 
-  @@index([entity, date])
+  @@index([organizationId, entity, date])
   @@index([categoryId])
 }
 
 model Budget {
-  id         String   @id @default(cuid())
-  month      Int
-  year       Int
-  entity     Entity
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  plannedAmount Float
+  id             String       @id @default(cuid())
+  month          Int
+  year           Int
+  entity         Entity
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  plannedAmount  Float
 
-  @@unique([month, year, entity, categoryId])
+  @@unique([organizationId, month, year, entity, categoryId])
 }

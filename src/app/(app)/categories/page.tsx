@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { parseEntity } from "@/lib/types";
 import { createCategory, deleteCategory } from "./actions";
+import { requireOrganizationId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,10 @@ export default async function CategoriesPage({
 }: PageProps<"/categories">) {
   const sp = await searchParams;
   const entity = parseEntity(sp.entity);
+  const organizationId = await requireOrganizationId();
 
   const categories = await prisma.category.findMany({
-    where: { entity },
+    where: { entity, organizationId },
     orderBy: { name: "asc" },
   });
 

@@ -3,9 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import Papa from "papaparse";
+import { requireOrganizationId } from "@/lib/session";
 import type { Entity, TransactionType } from "@/lib/types";
 
 export async function createTransaction(formData: FormData) {
+  const organizationId = await requireOrganizationId();
   const description = String(formData.get("description") ?? "").trim();
   const amountRaw = String(formData.get("amount") ?? "0").replace(",", ".");
   const amount = Math.abs(parseFloat(amountRaw) || 0);
@@ -17,6 +19,13 @@ export async function createTransaction(formData: FormData) {
 
   if (!description || !accountId || amount <= 0) return;
 
+  const account = await prisma.account.findFirst({ where: { id: accountId, organizationId } });
+  if (!account) return;
+  if (categoryId) {
+    const category = await prisma.category.findFirst({ where: { id: categoryId, organizationId } });
+    if (!category) return;
+  }
+
   await prisma.transaction.create({
     data: {
       description,
@@ -26,6 +35,7 @@ export async function createTransaction(formData: FormData) {
       date: new Date(date),
       accountId,
       categoryId,
+      organizationId,
       source: "manual",
       reconciled: true,
     },
@@ -37,15 +47,17 @@ export async function createTransaction(formData: FormData) {
 }
 
 export async function deleteTransaction(id: string) {
-  await prisma.transaction.delete({ where: { id } });
+  const organizationId = await requireOrganizationId();
+  await prisma.transaction.deleteMany({ where: { id, organizationId } });
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
   revalidatePath("/budget");
 }
 
 export async function toggleReconciled(id: string, reconciled: boolean) {
-  await prisma.transaction.update({
-    where: { id },
+  const organizationId = await requireOrganizationId();
+  await prisma.transaction.updateMany({
+    where: { id, organizationId },
     data: { reconciled },
   });
   revalidatePath("/transactions");
@@ -54,12 +66,18 @@ export async function toggleReconciled(id: string, reconciled: boolean) {
 type ImportResult = { imported: number; skipped: number; error?: string };
 
 export async function importStatement(formData: FormData): Promise<ImportResult> {
+  const organizationId = await requireOrganizationId();
   const file = formData.get("file") as File | null;
   const accountId = String(formData.get("accountId") ?? "");
   const entity = String(formData.get("entity") ?? "PERSONAL") as Entity;
 
   if (!file || !accountId) {
     return { imported: 0, skipped: 0, error: "Selecione um arquivo e uma conta." };
+  }
+
+  const account = await prisma.account.findFirst({ where: { id: accountId, organizationId } });
+  if (!account) {
+    return { imported: 0, skipped: 0, error: "Conta inválida." };
   }
 
   const text = await file.text();
@@ -137,6 +155,7 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
         entity,
         date,
         accountId,
+        organizationId,
         source: "import",
         reconciled: false,
       },

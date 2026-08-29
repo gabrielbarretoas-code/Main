@@ -5,6 +5,7 @@ import TransactionForm from "./TransactionForm";
 import ImportForm from "./ImportForm";
 import ReconcileToggle from "./ReconcileToggle";
 import { deleteTransaction } from "./actions";
+import { requireOrganizationId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,13 @@ export default async function TransactionsPage({
 }: PageProps<"/transactions">) {
   const sp = await searchParams;
   const entity = parseEntity(sp.entity);
+  const organizationId = await requireOrganizationId();
 
   const [accounts, categories, transactions] = await Promise.all([
-    prisma.account.findMany({ where: { entity }, orderBy: { name: "asc" } }),
-    prisma.category.findMany({ where: { entity }, orderBy: { name: "asc" } }),
+    prisma.account.findMany({ where: { entity, organizationId }, orderBy: { name: "asc" } }),
+    prisma.category.findMany({ where: { entity, organizationId }, orderBy: { name: "asc" } }),
     prisma.transaction.findMany({
-      where: { entity },
+      where: { entity, organizationId },
       include: { account: true, category: true },
       orderBy: { date: "desc" },
       take: 200,

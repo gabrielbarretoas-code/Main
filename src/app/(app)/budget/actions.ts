@@ -2,9 +2,11 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireOrganizationId } from "@/lib/session";
 import type { Entity } from "@/lib/types";
 
 export async function upsertBudget(formData: FormData) {
+  const organizationId = await requireOrganizationId();
   const categoryId = String(formData.get("categoryId") ?? "");
   const month = parseInt(String(formData.get("month") ?? "1"), 10);
   const year = parseInt(String(formData.get("year") ?? "2026"), 10);
@@ -15,18 +17,22 @@ export async function upsertBudget(formData: FormData) {
 
   if (!categoryId || plannedAmount <= 0) return;
 
+  const category = await prisma.category.findFirst({ where: { id: categoryId, organizationId } });
+  if (!category) return;
+
   await prisma.budget.upsert({
     where: {
-      month_year_entity_categoryId: { month, year, entity, categoryId },
+      organizationId_month_year_entity_categoryId: { organizationId, month, year, entity, categoryId },
     },
     update: { plannedAmount },
-    create: { month, year, entity, categoryId, plannedAmount },
+    create: { organizationId, month, year, entity, categoryId, plannedAmount },
   });
 
   revalidatePath("/budget");
 }
 
 export async function deleteBudget(id: string) {
-  await prisma.budget.delete({ where: { id } });
+  const organizationId = await requireOrganizationId();
+  await prisma.budget.deleteMany({ where: { id, organizationId } });
   revalidatePath("/budget");
 }
