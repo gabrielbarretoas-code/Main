@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { parseEntity, ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/types";
 import { createAccount, deleteAccount } from "./actions";
 import { formatCurrency } from "@/lib/format";
+import { requireOrganizationId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -10,15 +11,16 @@ export default async function AccountsPage({
 }: PageProps<"/accounts">) {
   const sp = await searchParams;
   const entity = parseEntity(sp.entity);
+  const organizationId = await requireOrganizationId();
 
   const accounts = await prisma.account.findMany({
-    where: { entity },
+    where: { entity, organizationId },
     orderBy: { createdAt: "asc" },
   });
 
   const balances = await Promise.all(
     accounts.map(async (a) => {
-      const txs = await prisma.transaction.findMany({ where: { accountId: a.id } });
+      const txs = await prisma.transaction.findMany({ where: { accountId: a.id, organizationId } });
       return txs.reduce((s, t) => s + (t.type === "INCOME" ? t.amount : -t.amount), 0);
     })
   );

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { parseEntity } from "@/lib/types";
 import { formatCurrency, MONTHS_PT } from "@/lib/format";
 import { upsertBudget } from "./actions";
+import { requireOrganizationId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function BudgetPage({
 }: PageProps<"/budget">) {
   const sp = await searchParams;
   const entity = parseEntity(sp.entity);
+  const organizationId = await requireOrganizationId();
   const now = new Date();
   const month = sp.month ? parseInt(String(sp.month), 10) : now.getMonth() + 1;
   const year = sp.year ? parseInt(String(sp.year), 10) : now.getFullYear();
@@ -19,12 +21,12 @@ export default async function BudgetPage({
 
   const [categories, budgets, transactions] = await Promise.all([
     prisma.category.findMany({
-      where: { entity, type: "EXPENSE" },
+      where: { entity, type: "EXPENSE", organizationId },
       orderBy: { name: "asc" },
     }),
-    prisma.budget.findMany({ where: { entity, month, year } }),
+    prisma.budget.findMany({ where: { entity, month, year, organizationId } }),
     prisma.transaction.findMany({
-      where: { entity, type: "EXPENSE", date: { gte: monthStart, lt: monthEnd } },
+      where: { entity, type: "EXPENSE", date: { gte: monthStart, lt: monthEnd }, organizationId },
     }),
   ]);
 
