@@ -69,7 +69,11 @@ export default async function TransactionsPage({
                 <td className="p-3 whitespace-nowrap">{formatDate(t.date)}</td>
                 <td className="p-3">{t.description}</td>
                 <td className="p-3">
-                  {t.category ? (
+                  {t.isTransfer ? (
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                      Transferência
+                    </span>
+                  ) : t.category ? (
                     <span className="inline-flex items-center gap-1.5">
                       <span
                         className="w-2 h-2 rounded-full inline-block"

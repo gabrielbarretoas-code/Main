@@ -6,7 +6,7 @@ import {
   MonthlyTrendChart,
 } from "@/components/charts/DashboardCharts";
 import { requireOrganizationId } from "@/lib/session";
-import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, PiggyBank } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +23,16 @@ export default async function DashboardPage({
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const sixMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-  const [accounts, balanceGroups, recentTransactions] = await Promise.all([
+  const [accounts, balanceGroups, transferGroups, recentTransactions] = await Promise.all([
     prisma.account.findMany({ where: { entity, organizationId }, orderBy: { name: "asc" } }),
     prisma.transaction.groupBy({
       by: ["accountId", "type"],
       where: { entity, organizationId },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ["type"],
+      where: { entity, organizationId, isTransfer: true },
       _sum: { amount: true },
     }),
     prisma.transaction.findMany({
@@ -45,9 +50,19 @@ export default async function DashboardPage({
   }
   const totalBalance = accounts.reduce((s, a) => s + (balanceByAccount.get(a.id) ?? 0), 0);
 
-  const monthTx = recentTransactions.filter((t) => t.date >= monthStart && t.date < monthEnd);
+  // Dinheiro que saiu da conta para investimentos/aplicações automáticas (EXPENSE)
+  // menos o que voltou de lá (INCOME) — continua seu, só que "guardado".
+  const appliedTotal = transferGroups.reduce((sum, g) => {
+    const sign = g.type === "EXPENSE" ? 1 : -1;
+    return sum + sign * (g._sum.amount ?? 0);
+  }, 0);
+  const netWorth = totalBalance + appliedTotal;
+
+  const monthTx = recentTransactions.filter(
+    (t) => t.date >= monthStart && t.date < monthEnd && !t.isTransfer
+  );
   const prevMonthTx = recentTransactions.filter(
-    (t) => t.date >= prevMonthStart && t.date < monthStart
+    (t) => t.date >= prevMonthStart && t.date < monthStart && !t.isTransfer
   );
 
   const income = sumByType(monthTx, "INCOME");
@@ -73,7 +88,9 @@ export default async function DashboardPage({
   for (let i = 5; i >= 0; i--) {
     const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-    const txs = recentTransactions.filter((t) => t.date >= start && t.date < end);
+    const txs = recentTransactions.filter(
+      (t) => t.date >= start && t.date < end && !t.isTransfer
+    );
     monthly.push({
       month: MONTHS_PT[start.getMonth()].slice(0, 3),
       Receitas: sumByType(txs, "INCOME"),
@@ -98,11 +115,32 @@ export default async function DashboardPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Saldo total"
+          label="Saldo em conta"
           value={totalBalance}
           icon={Wallet}
           tone="neutral"
         />
+        <StatCard
+          label="Aplicado / investido"
+          value={appliedTotal}
+          icon={PiggyBank}
+          tone="neutral"
+        />
+        <StatCard
+          label="Patrimônio total"
+          value={netWorth}
+          icon={ArrowLeftRight}
+          tone="neutral"
+        />
+        <StatCard
+          label="Resultado do mês"
+          value={balance}
+          icon={TrendingUp}
+          tone={balance >= 0 ? "positive" : "negative"}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           label="Receitas do mês"
           value={income}
@@ -118,13 +156,13 @@ export default async function DashboardPage({
           change={pctChange(expense, prevExpense)}
           invertChangeColor
         />
-        <StatCard
-          label="Resultado do mês"
-          value={balance}
-          icon={ArrowLeftRight}
-          tone={balance >= 0 ? "positive" : "negative"}
-        />
       </div>
+
+      <p className="text-xs text-slate-500">
+        <strong>Saldo em conta</strong> é o dinheiro disponível agora. <strong>Aplicado / investido</strong>{" "}
+        é o que já foi movido para aplicações automáticas (não é despesa). <strong>Patrimônio total</strong>{" "}
+        é a soma dos dois — o que você realmente tem.
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
