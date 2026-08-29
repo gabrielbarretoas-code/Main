@@ -71,6 +71,7 @@ model Account {
   name           String
   type           AccountType
   entity         Entity
+  hasAutoInvest  Boolean       @default(false)
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
@@ -85,12 +86,17 @@ model Category {
   type           TransactionType
   entity         Entity
   color          String          @default("#6366f1")
+  icon           String          @default("Tag")
   organizationId String
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentId       String?
+  parent         Category?       @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children       Category[]      @relation("CategoryHierarchy")
   transactions   Transaction[]
   budgets        Budget[]
 
   @@unique([organizationId, name, type, entity])
+  @@index([parentId])
 }
 
 model CostCenter {

@@ -6,7 +6,7 @@ import {
   MonthlyTrendChart,
 } from "@/components/charts/DashboardCharts";
 import { requireOrganizationId } from "@/lib/session";
-import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, PiggyBank } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowLeftRight, PiggyBank, Landmark } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -48,15 +48,26 @@ export default async function DashboardPage({
     const prev = balanceByAccount.get(g.accountId) ?? 0;
     balanceByAccount.set(g.accountId, prev + sign * (g._sum.amount ?? 0));
   }
-  const totalBalance = accounts.reduce((s, a) => s + (balanceByAccount.get(a.id) ?? 0), 0);
 
-  // Dinheiro que saiu da conta para investimentos/aplicações automáticas (EXPENSE)
-  // menos o que voltou de lá (INCOME) — continua seu, só que "guardado".
-  const appliedTotal = transferGroups.reduce((sum, g) => {
+  // Contas de investimento (tipo INVESTMENT) são patrimônio guardado de fato —
+  // não entram no saldo do dia a dia. As demais são o dinheiro "líquido".
+  const liquidAccounts = accounts.filter((a) => a.type !== "INVESTMENT");
+  const investmentAccounts = accounts.filter((a) => a.type === "INVESTMENT");
+  const liquidBalance = liquidAccounts.reduce((s, a) => s + (balanceByAccount.get(a.id) ?? 0), 0);
+  const investedBalance = investmentAccounts.reduce(
+    (s, a) => s + (balanceByAccount.get(a.id) ?? 0),
+    0
+  );
+
+  // Dinheiro que saiu da conta corrente para uma aplicação automática do banco
+  // (EXPENSE) menos o que voltou de lá (INCOME) — continua seu, só "guardado".
+  const autoInvestedTotal = transferGroups.reduce((sum, g) => {
     const sign = g.type === "EXPENSE" ? 1 : -1;
     return sum + sign * (g._sum.amount ?? 0);
   }, 0);
-  const netWorth = totalBalance + appliedTotal;
+  const hasAutoInvestAccount = liquidAccounts.some((a) => a.hasAutoInvest);
+  const showAutoInvestBreakdown = hasAutoInvestAccount || autoInvestedTotal !== 0;
+  const availableBalance = liquidBalance + autoInvestedTotal;
 
   const monthTx = recentTransactions.filter(
     (t) => t.date >= monthStart && t.date < monthEnd && !t.isTransfer
@@ -113,34 +124,45 @@ export default async function DashboardPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div
+        className={`grid grid-cols-1 gap-4 ${showAutoInvestBreakdown ? "sm:grid-cols-3" : ""}`}
+      >
         <StatCard
-          label="Saldo em conta"
-          value={totalBalance}
+          label="Saldo real disponível"
+          value={availableBalance}
           icon={Wallet}
           tone="neutral"
+          highlight
         />
+        {showAutoInvestBreakdown && (
+          <>
+            <StatCard label="Saldo transitório" value={liquidBalance} icon={ArrowLeftRight} tone="neutral" />
+            <StatCard
+              label="Investimento automático"
+              value={autoInvestedTotal}
+              icon={PiggyBank}
+              tone="neutral"
+            />
+          </>
+        )}
+      </div>
+
+      {investmentAccounts.length > 0 && (
         <StatCard
-          label="Aplicado / investido"
-          value={appliedTotal}
-          icon={PiggyBank}
+          label="Patrimônio investido (à parte)"
+          value={investedBalance}
+          icon={Landmark}
           tone="neutral"
         />
-        <StatCard
-          label="Patrimônio total"
-          value={netWorth}
-          icon={ArrowLeftRight}
-          tone="neutral"
-        />
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           label="Resultado do mês"
           value={balance}
           icon={TrendingUp}
           tone={balance >= 0 ? "positive" : "negative"}
         />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           label="Receitas do mês"
           value={income}
@@ -158,11 +180,16 @@ export default async function DashboardPage({
         />
       </div>
 
-      <p className="text-xs text-slate-500">
-        <strong>Saldo em conta</strong> é o dinheiro disponível agora. <strong>Aplicado / investido</strong>{" "}
-        é o que já foi movido para aplicações automáticas (não é despesa). <strong>Patrimônio total</strong>{" "}
-        é a soma dos dois — o que você realmente tem.
-      </p>
+      {showAutoInvestBreakdown && (
+        <p className="text-xs text-slate-500">
+          <strong>Saldo real disponível</strong> é quanto você tem de fato, já somando o que está
+          aplicado automaticamente. <strong>Saldo transitório</strong> é o que está líquido na conta
+          agora. <strong>Investimento automático</strong> é o que o banco moveu sozinho para uma
+          aplicação (ex: Rende Fácil) — não conta como gasto.
+          {investmentAccounts.length > 0 &&
+            " Patrimônio investido à parte é diferente: dinheiro que você decidiu guardar em um investimento de verdade, não entra no saldo do dia a dia."}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
@@ -260,6 +287,7 @@ function StatCard({
   icon: Icon,
   change,
   invertChangeColor,
+  highlight,
 }: {
   label: string;
   value: number;
@@ -267,11 +295,29 @@ function StatCard({
   icon: React.ComponentType<{ size?: number; className?: string }>;
   change?: number | null;
   invertChangeColor?: boolean;
+  highlight?: boolean;
 }) {
-  const valueColor =
-    tone === "positive" ? "text-emerald-600" : tone === "negative" ? "text-red-600" : "text-slate-900";
+  const valueColor = highlight
+    ? "text-white"
+    : tone === "positive"
+      ? "text-emerald-600"
+      : tone === "negative"
+        ? "text-red-600"
+        : "text-slate-900";
 
   const changeIsGood = change !== undefined && change !== null && (invertChangeColor ? change <= 0 : change >= 0);
+
+  if (highlight) {
+    return (
+      <div className="rounded-xl p-5 shadow-sm bg-gradient-to-br from-indigo-600 to-indigo-800 text-white">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm text-indigo-100">{label}</p>
+          <Icon size={18} className="text-indigo-200" />
+        </div>
+        <p className={`text-3xl font-bold ${valueColor}`}>{formatCurrency(value)}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">

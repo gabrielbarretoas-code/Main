@@ -14,6 +14,7 @@ import {
   parseXlsxRows,
   type ParsedTransaction,
 } from "@/lib/statementImport";
+import { suggestIsTransfer } from "@/lib/categorySuggestion";
 
 export async function createTransaction(formData: FormData) {
   const organizationId = await requireOrganizationId();
@@ -72,7 +73,12 @@ export async function toggleReconciled(id: string, reconciled: boolean) {
   revalidatePath("/transactions");
 }
 
-type ImportResult = { imported: number; skipped: number; error?: string };
+type ImportResult = {
+  imported: number;
+  skipped: number;
+  autoReconciled?: number;
+  error?: string;
+};
 
 export async function importStatement(formData: FormData): Promise<ImportResult> {
   const organizationId = await requireOrganizationId();
@@ -139,7 +145,11 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
   }
 
   let imported = 0;
+  let autoReconciled = 0;
   for (const t of transactions) {
+    const isKnownTransfer = account.hasAutoInvest && suggestIsTransfer(t.description);
+    if (isKnownTransfer) autoReconciled++;
+
     await prisma.transaction.create({
       data: {
         description: t.description,
@@ -150,7 +160,8 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
         accountId,
         organizationId,
         source: "import",
-        reconciled: false,
+        isTransfer: isKnownTransfer,
+        reconciled: isKnownTransfer,
       },
     });
     imported++;
@@ -159,8 +170,9 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
   const skipped = Math.max(rowCount - imported, 0);
 
   revalidatePath("/transactions");
+  revalidatePath("/reconciliation");
   revalidatePath("/dashboard");
   revalidatePath("/budget");
 
-  return { imported, skipped };
+  return { imported, skipped, autoReconciled };
 }

@@ -57,10 +57,18 @@ export default async function AccountsPage({
               ))}
             </select>
           </div>
+          <label className="flex items-center gap-2 text-sm text-slate-600 pb-1.5">
+            <input type="checkbox" name="hasAutoInvest" />
+            Tem investimento automático de saldo (ex: Rende Fácil, Cofrinho)?
+          </label>
           <button className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700">
             Adicionar
           </button>
         </form>
+        <p className="text-xs text-slate-400 mt-2">
+          Se marcado, identificamos e conciliamos essas movimentações automaticamente — elas não
+          entram como despesa, e aparecem separadas no Dashboard como saldo aplicado.
+        </p>
       </div>
 
       <div className="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
@@ -73,6 +81,11 @@ export default async function AccountsPage({
               <p className="font-medium">{a.name}</p>
               <p className="text-xs text-slate-500">
                 {ACCOUNT_TYPE_LABELS[a.type as AccountType]}
+                {a.hasAutoInvest && (
+                  <span className="ml-2 text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full">
+                    investimento automático
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-4">

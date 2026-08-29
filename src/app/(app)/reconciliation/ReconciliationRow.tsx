@@ -5,44 +5,66 @@ import { CheckCircle2 } from "lucide-react";
 import { confirmReconciliation, quickCreateCategory } from "./actions";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { Entity, TransactionType } from "@/lib/types";
+import type { TransactionRowData } from "./ReconciliationList";
 
-type Category = { id: string; name: string; color: string };
+export type CategoryOption = {
+  id: string;
+  name: string;
+  color: string;
+  parentId: string | null;
+  type: TransactionType;
+};
 type CostCenter = { id: string; name: string };
 
 const NEW_CATEGORY_VALUE = "__new__";
 
+/** Ordena categorias-mãe seguidas das suas subcategorias, com prefixo visual. */
+function buildOptions(categories: CategoryOption[], type: TransactionType) {
+  const sameType = categories.filter((c) => c.type === type);
+  const parents = sameType.filter((c) => !c.parentId);
+  const options: { id: string; label: string }[] = [];
+  for (const p of parents) {
+    options.push({ id: p.id, label: p.name });
+    const children = sameType.filter((c) => c.parentId === p.id);
+    for (const c of children) {
+      options.push({ id: c.id, label: `↳ ${c.name}` });
+    }
+  }
+  return options;
+}
+
 export default function ReconciliationRow({
   transaction,
-  categories: initialCategories,
+  categories,
   costCenters,
   suggestedCategoryId,
   suggestedIsTransfer,
   entity,
+  onCategoryCreated,
 }: {
-  transaction: {
-    id: string;
-    description: string;
-    date: Date;
-    amount: number;
-    type: TransactionType;
-    accountName: string;
-  };
-  categories: Category[];
+  transaction: TransactionRowData;
+  categories: CategoryOption[];
   costCenters: CostCenter[];
   suggestedCategoryId: string | null;
   suggestedIsTransfer: boolean;
   entity: Entity;
+  onCategoryCreated: (cat: CategoryOption) => void;
 }) {
-  const [categories, setCategories] = useState(initialCategories);
-  const [categoryId, setCategoryId] = useState(suggestedCategoryId ?? "");
-  const [costCenterId, setCostCenterId] = useState("");
-  const [isTransfer, setIsTransfer] = useState(suggestedIsTransfer);
+  const wasAlreadyReconciled = transaction.reconciled;
+  const [categoryId, setCategoryId] = useState(
+    transaction.categoryId ?? suggestedCategoryId ?? ""
+  );
+  const [costCenterId, setCostCenterId] = useState(transaction.costCenterId ?? "");
+  const [isTransfer, setIsTransfer] = useState(transaction.isTransfer || suggestedIsTransfer);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const wasSuggested = suggestedCategoryId !== null && categoryId === suggestedCategoryId;
+  const wasSuggested =
+    !wasAlreadyReconciled && suggestedCategoryId !== null && categoryId === suggestedCategoryId;
+  const options = buildOptions(categories, transaction.type);
 
   function handleCategorySelect(value: string) {
     if (value === NEW_CATEGORY_VALUE) {
@@ -58,7 +80,7 @@ export default function ReconciliationRow({
     startTransition(async () => {
       const created = await quickCreateCategory(name, transaction.type, entity);
       if (created) {
-        setCategories((prev) => [...prev, created]);
+        onCategoryCreated({ ...created, parentId: null, type: transaction.type });
         setCategoryId(created.id);
       }
       setCreatingCategory(false);
@@ -74,7 +96,12 @@ export default function ReconciliationRow({
         costCenterId || null,
         isTransfer
       );
-      setConfirmed(true);
+      if (wasAlreadyReconciled) {
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 2000);
+      } else {
+        setConfirmed(true);
+      }
     });
   }
 
@@ -116,9 +143,9 @@ export default function ReconciliationRow({
             }`}
           >
             <option value="">Selecione a categoria…</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
               </option>
             ))}
             <option value={NEW_CATEGORY_VALUE}>+ Criar nova categoria…</option>
@@ -154,7 +181,7 @@ export default function ReconciliationRow({
           </span>
         )}
 
-        {wasSuggested && !creatingCategory && !isTransfer && (
+        {wasSuggested && !creatingCategory && (
           <span className="text-xs text-indigo-600">sugerido</span>
         )}
 
@@ -187,13 +214,15 @@ export default function ReconciliationRow({
         )}
       </div>
 
+      {justSaved && <span className="text-xs text-emerald-600 whitespace-nowrap">Salvo ✓</span>}
+
       <button
         type="button"
         disabled={pending || (!isTransfer && !categoryId)}
         onClick={handleConfirm}
         className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 whitespace-nowrap"
       >
-        Confirmar
+        {wasAlreadyReconciled ? "Salvar" : "Confirmar"}
       </button>
     </div>
   );

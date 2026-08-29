@@ -1,20 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { parseEntity } from "@/lib/types";
-import { createCategory, deleteCategory } from "./actions";
+import { deleteCategory } from "./actions";
 import { requireOrganizationId } from "@/lib/session";
+import { getCategoryIcon } from "@/lib/categoryIcons";
+import NewCategoryForm from "./NewCategoryForm";
 
 export const dynamic = "force-dynamic";
-
-const COLORS = [
-  "#6366f1",
-  "#22c55e",
-  "#ef4444",
-  "#f59e0b",
-  "#0ea5e9",
-  "#a855f7",
-  "#ec4899",
-  "#14b8a6",
-];
 
 export default async function CategoriesPage({
   searchParams,
@@ -28,88 +19,116 @@ export default async function CategoriesPage({
     orderBy: { name: "asc" },
   });
 
-  const income = categories.filter((c) => c.type === "INCOME");
-  const expense = categories.filter((c) => c.type === "EXPENSE");
+  const parents = categories.filter((c) => !c.parentId);
+  const childrenByParent = new Map<string, typeof categories>();
+  for (const c of categories) {
+    if (!c.parentId) continue;
+    const list = childrenByParent.get(c.parentId) ?? [];
+    list.push(c);
+    childrenByParent.set(c.parentId, list);
+  }
+
+  const income = parents.filter((c) => c.type === "INCOME");
+  const expense = parents.filter((c) => c.type === "EXPENSE");
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">
-        Categorias — {entity === "PERSONAL" ? "Pessoal" : "Comercial"}
-      </h1>
-
-      <div className="bg-white rounded-lg border border-slate-200 p-4">
-        <h2 className="font-medium mb-3">Nova categoria</h2>
-        <form action={createCategory} className="flex flex-wrap gap-3 items-end">
-          <input type="hidden" name="entity" value={entity} />
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Nome</label>
-            <input
-              name="name"
-              required
-              className="border border-slate-300 rounded-md px-3 py-1.5 text-sm"
-              placeholder="Ex: Alimentação"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Tipo</label>
-            <select name="type" className="border border-slate-300 rounded-md px-3 py-1.5 text-sm">
-              <option value="EXPENSE">Despesa</option>
-              <option value="INCOME">Receita</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Cor</label>
-            <select name="color" className="border border-slate-300 rounded-md px-3 py-1.5 text-sm">
-              {COLORS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button className="bg-indigo-600 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-indigo-700">
-            Adicionar
-          </button>
-        </form>
+      <div>
+        <h1 className="text-2xl font-semibold">
+          Categorias — {entity === "PERSONAL" ? "Pessoal" : "Comercial"}
+        </h1>
+        <p className="text-sm text-slate-500">
+          Organize com categorias e subcategorias para um relatório financeiro claro de verdade.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <CategoryList title="Despesas" items={expense} />
-        <CategoryList title="Receitas" items={income} />
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <h2 className="font-medium mb-3">Nova categoria</h2>
+        <NewCategoryForm
+          entity={entity}
+          parents={parents.map((p) => ({
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            icon: p.icon,
+            color: p.color,
+          }))}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CategoryGroup title="Despesas" categories={expense} childrenByParent={childrenByParent} />
+        <CategoryGroup title="Receitas" categories={income} childrenByParent={childrenByParent} />
       </div>
     </div>
   );
 }
 
-function CategoryList({
+type CategoryRow = {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+};
+
+function CategoryGroup({
   title,
-  items,
+  categories,
+  childrenByParent,
 }: {
   title: string;
-  items: { id: string; name: string; color: string }[];
+  categories: CategoryRow[];
+  childrenByParent: Map<string, CategoryRow[]>;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200">
-      <h2 className="font-medium p-4 border-b border-slate-100">{title}</h2>
-      <div className="divide-y divide-slate-100">
-        {items.length === 0 && (
-          <p className="p-4 text-sm text-slate-500">Nenhuma categoria.</p>
-        )}
-        {items.map((c) => (
-          <div key={c.id} className="flex items-center justify-between p-3">
-            <span className="flex items-center gap-2 text-sm">
+    <div className="space-y-3">
+      <h2 className="font-medium text-slate-900">{title}</h2>
+      {categories.length === 0 && (
+        <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-4">
+          Nenhuma categoria ainda.
+        </p>
+      )}
+      {categories.map((c) => {
+        const Icon = getCategoryIcon(c.icon);
+        const children = childrenByParent.get(c.id) ?? [];
+        return (
+          <div
+            key={c.id}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+          >
+            <div className="flex items-center gap-3 p-3">
               <span
-                className="w-3 h-3 rounded-full inline-block"
-                style={{ backgroundColor: c.color }}
-              />
-              {c.name}
-            </span>
-            <form action={deleteCategory.bind(null, c.id)}>
-              <button className="text-xs text-red-500 hover:underline">Remover</button>
-            </form>
+                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${c.color}20`, color: c.color }}
+              >
+                <Icon size={18} />
+              </span>
+              <span className="flex-1 font-medium text-sm text-slate-800">{c.name}</span>
+              <form action={deleteCategory.bind(null, c.id)}>
+                <button className="text-xs text-red-500 hover:underline">Remover</button>
+              </form>
+            </div>
+            {children.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 px-3 pb-3 pl-[3.25rem]">
+                {children.map((child) => (
+                  <span
+                    key={child.id}
+                    className="group inline-flex items-center gap-1 text-xs pl-2.5 pr-1 py-1 rounded-full"
+                    style={{ backgroundColor: `${child.color}15`, color: child.color }}
+                  >
+                    {child.name}
+                    <form action={deleteCategory.bind(null, child.id)}>
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 rounded-full hover:bg-black/10 flex items-center justify-center">
+                        ×
+                      </button>
+                    </form>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
