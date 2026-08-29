@@ -63,6 +63,17 @@ export async function toggleReconciled(id: string, reconciled: boolean) {
   revalidatePath("/transactions");
 }
 
+async function decodeFileText(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    // Extratos de bancos brasileiros costumam vir em Latin-1/Windows-1252,
+    // não UTF-8 — decodificar como UTF-8 corromperia os acentos.
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
+}
+
 type ImportResult = { imported: number; skipped: number; error?: string };
 
 export async function importStatement(formData: FormData): Promise<ImportResult> {
@@ -80,7 +91,7 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     return { imported: 0, skipped: 0, error: "Conta inválida." };
   }
 
-  const text = await file.text();
+  const text = await decodeFileText(file);
   const parsed = Papa.parse<Record<string, string>>(text, {
     header: true,
     skipEmptyLines: true,
@@ -92,8 +103,17 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
   }
 
   const dateKeys = ["data", "date", "dt"];
-  const descKeys = ["descricao", "descrição", "description", "historico", "histórico", "memo"];
-  const amountKeys = ["valor", "amount", "value"];
+  const descKeys = [
+    "descricao",
+    "descrição",
+    "description",
+    "historico",
+    "histórico",
+    "memo",
+    "lancamento",
+    "lançamento",
+  ];
+  const amountKeys = ["valor", "amount", "value", "valor (r$)"];
 
   function pick(row: Record<string, string>, keys: string[]) {
     const lowerMap = Object.fromEntries(
@@ -102,7 +122,17 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     for (const k of keys) {
       if (lowerMap[k] !== undefined) return lowerMap[k];
     }
+    // Fallback: prefix match, in case the header has extra words or characters
+    for (const k of keys) {
+      const found = Object.entries(lowerMap).find(([header]) => header.startsWith(k));
+      if (found) return found[1];
+    }
     return undefined;
+  }
+
+  function isBalanceLine(description: string): boolean {
+    const stripped = description.replace(/\s+/g, "").toLowerCase();
+    return stripped.startsWith("saldo");
   }
 
   function parseAmount(raw: string): number {
@@ -135,6 +165,11 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     const amountRaw = pick(row, amountKeys);
 
     if (!dateRaw || !descRaw || amountRaw === undefined) {
+      skipped++;
+      continue;
+    }
+
+    if (isBalanceLine(descRaw)) {
       skipped++;
       continue;
     }
