@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Entity {
+  PERSONAL
+  BUSINESS
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  CASH
+  INVESTMENT
+}
+
+model Account {
+  id           String        @id @default(cuid())
+  name         String
+  type         AccountType
+  entity       Entity
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model Category {
+  id           String            @id @default(cuid())
+  name         String
+  type         TransactionType
+  entity       Entity
+  color        String            @default("#6366f1")
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@unique([name, type, entity])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  date        DateTime
+  description String
+  amount      Float
+  type        TransactionType
+  entity      Entity
+  reconciled  Boolean         @default(false)
+  source      String          @default("manual")
+  accountId   String
+  account     Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId  String?
+  category    Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+
+  @@index([entity, date])
+  @@index([categoryId])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  month      Int
+  year       Int
+  entity     Entity
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  plannedAmount Float
+
+  @@unique([month, year, entity, categoryId])
+}
