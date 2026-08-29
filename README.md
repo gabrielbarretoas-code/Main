@@ -6,7 +6,7 @@ controle de finanças pessoais e comerciais, mantidas separadas.
 ## Stack
 
 - [Next.js](https://nextjs.org/) (App Router) + TypeScript
-- [Prisma ORM](https://www.prisma.io/) + SQLite (fácil de trocar por Postgres/Supabase depois)
+- [Prisma ORM](https://www.prisma.io/) + PostgreSQL
 - Tailwind CSS
 - Recharts (gráficos)
 
@@ -25,12 +25,23 @@ controle de finanças pessoais e comerciais, mantidas separadas.
 - Integração com WhatsApp Business API para lançar despesas e receber alertas
 - Reconhecimento automático de despesas por foto de recibo, áudio, texto e arquivos (OCR/IA)
 
-## Como rodar localmente
+## Como publicar o app na internet (sem usar terminal)
+
+1. Crie uma conta grátis em **vercel.com**, entrando com sua conta do GitHub (botão "Continue with GitHub").
+2. Dentro da Vercel, clique em **"Add New" → "Project"**.
+3. Escolha o repositório **gabrielbarretoas-code/Main** e clique em **"Import"**.
+4. Em "Branch", selecione `claude/criar-aplicativo-n1kbo3` (ou faça o merge da PR para `main` antes, se preferir publicar a branch principal).
+5. Antes de clicar em Deploy, crie o banco de dados: na própria tela de importação (ou depois, na aba **"Storage"** do projeto), clique em **"Create Database" → escolha "Postgres" (Neon)**. A Vercel conecta a variável `DATABASE_URL` automaticamente ao projeto.
+6. Clique em **"Deploy"**. Aguarde alguns minutos — o próprio build já cria as tabelas e cadastra as categorias padrão automaticamente.
+7. Ao terminar, a Vercel te dá um link (algo como `financas-app.vercel.app`) — é esse link que você acessa pelo navegador, no computador ou no celular.
+
+## Como rodar localmente (opcional, exige terminal)
 
 ```bash
 npm install
-npx prisma db push   # cria o banco SQLite local a partir do schema
-npm run db:seed      # popula categorias padrão (pessoal e comercial)
+# defina DATABASE_URL no .env apontando para um Postgres (local ou na nuvem)
+npx prisma db push
+npm run db:seed
 npm run dev
 ```
 
