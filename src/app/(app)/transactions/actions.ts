@@ -5,6 +5,15 @@ import { revalidatePath } from "next/cache";
 import Papa from "papaparse";
 import { requireOrganizationId } from "@/lib/session";
 import type { Entity, TransactionType } from "@/lib/types";
+import {
+  decodeFileText,
+  detectFileKind,
+  normalizeGenericRow,
+  parseOfxTransactions,
+  parsePdfTransactions,
+  parseXlsxRows,
+  type ParsedTransaction,
+} from "@/lib/statementImport";
 
 export async function createTransaction(formData: FormData) {
   const organizationId = await requireOrganizationId();
@@ -63,17 +72,6 @@ export async function toggleReconciled(id: string, reconciled: boolean) {
   revalidatePath("/transactions");
 }
 
-async function decodeFileText(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-  } catch {
-    // Extratos de bancos brasileiros costumam vir em Latin-1/Windows-1252,
-    // não UTF-8 — decodificar como UTF-8 corromperia os acentos.
-    return new TextDecoder("windows-1252").decode(buffer);
-  }
-}
-
 type ImportResult = { imported: number; skipped: number; error?: string };
 
 export async function importStatement(formData: FormData): Promise<ImportResult> {
@@ -91,104 +89,64 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     return { imported: 0, skipped: 0, error: "Conta inválida." };
   }
 
-  const text = await decodeFileText(file);
-  const parsed = Papa.parse<Record<string, string>>(text, {
-    header: true,
-    skipEmptyLines: true,
-    delimiter: "",
-  });
+  const kind = detectFileKind(file.name);
+  let transactions: ParsedTransaction[] = [];
+  let rowCount = 0;
 
-  if (parsed.errors.length && parsed.data.length === 0) {
-    return { imported: 0, skipped: 0, error: "Não foi possível ler o arquivo CSV." };
-  }
-
-  const dateKeys = ["data", "date", "dt"];
-  const descKeys = [
-    "descricao",
-    "descrição",
-    "description",
-    "historico",
-    "histórico",
-    "memo",
-    "lancamento",
-    "lançamento",
-  ];
-  const amountKeys = ["valor", "amount", "value", "valor (r$)"];
-
-  function pick(row: Record<string, string>, keys: string[]) {
-    const lowerMap = Object.fromEntries(
-      Object.entries(row).map(([k, v]) => [k.trim().toLowerCase(), v])
-    );
-    for (const k of keys) {
-      if (lowerMap[k] !== undefined) return lowerMap[k];
+  try {
+    if (kind === "csv") {
+      const text = await decodeFileText(file);
+      const parsed = Papa.parse<Record<string, string>>(text, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: "",
+      });
+      if (parsed.errors.length && parsed.data.length === 0) {
+        return { imported: 0, skipped: 0, error: "Não foi possível ler o arquivo CSV." };
+      }
+      rowCount = parsed.data.length;
+      transactions = parsed.data
+        .map(normalizeGenericRow)
+        .filter((t): t is ParsedTransaction => t !== null);
+    } else if (kind === "xlsx") {
+      const rows = await parseXlsxRows(file);
+      rowCount = rows.length;
+      transactions = rows.map(normalizeGenericRow).filter((t): t is ParsedTransaction => t !== null);
+    } else if (kind === "ofx") {
+      const text = await decodeFileText(file);
+      transactions = parseOfxTransactions(text);
+      rowCount = transactions.length;
+    } else if (kind === "pdf") {
+      transactions = await parsePdfTransactions(file);
+      rowCount = transactions.length;
+      if (transactions.length === 0) {
+        return {
+          imported: 0,
+          skipped: 0,
+          error:
+            "Não consegui reconhecer lançamentos nesse PDF. Funciona melhor com PDFs de texto (não escaneados). Tente exportar em CSV, Excel ou OFX pelo internet banking.",
+        };
+      }
+    } else {
+      return {
+        imported: 0,
+        skipped: 0,
+        error: "Formato de arquivo não suportado. Use CSV, Excel (.xlsx/.xls), OFX ou PDF.",
+      };
     }
-    // Fallback: prefix match, in case the header has extra words or characters
-    for (const k of keys) {
-      const found = Object.entries(lowerMap).find(([header]) => header.startsWith(k));
-      if (found) return found[1];
-    }
-    return undefined;
-  }
-
-  function isBalanceLine(description: string): boolean {
-    const stripped = description.replace(/\s+/g, "").toLowerCase();
-    return stripped.startsWith("saldo");
-  }
-
-  function parseAmount(raw: string): number {
-    const cleaned = raw.replace(/[^\d,.-]/g, "");
-    if (cleaned.includes(",") && cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")) {
-      return parseFloat(cleaned.replace(/\./g, "").replace(",", "."));
-    }
-    return parseFloat(cleaned.replace(/,/g, ""));
-  }
-
-  function parseDate(raw: string): Date | null {
-    const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (isoMatch) return new Date(raw);
-    const brMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-    if (brMatch) {
-      const [, d, m, y] = brMatch;
-      const year = y.length === 2 ? `20${y}` : y;
-      return new Date(`${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
-    }
-    const d = new Date(raw);
-    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return { imported: 0, skipped: 0, error: "Não foi possível ler esse arquivo." };
   }
 
   let imported = 0;
-  let skipped = 0;
-
-  for (const row of parsed.data) {
-    const dateRaw = pick(row, dateKeys);
-    const descRaw = pick(row, descKeys);
-    const amountRaw = pick(row, amountKeys);
-
-    if (!dateRaw || !descRaw || amountRaw === undefined) {
-      skipped++;
-      continue;
-    }
-
-    if (isBalanceLine(descRaw)) {
-      skipped++;
-      continue;
-    }
-
-    const date = parseDate(dateRaw.trim());
-    const value = parseAmount(amountRaw.trim());
-
-    if (!date || isNaN(value) || value === 0) {
-      skipped++;
-      continue;
-    }
-
+  for (const t of transactions) {
     await prisma.transaction.create({
       data: {
-        description: descRaw.trim(),
-        amount: Math.abs(value),
-        type: value < 0 ? "EXPENSE" : "INCOME",
+        description: t.description,
+        amount: Math.abs(t.amount),
+        type: t.amount < 0 ? "EXPENSE" : "INCOME",
         entity,
-        date,
+        date: t.date,
         accountId,
         organizationId,
         source: "import",
@@ -197,6 +155,8 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     });
     imported++;
   }
+
+  const skipped = Math.max(rowCount - imported, 0);
 
   revalidatePath("/transactions");
   revalidatePath("/dashboard");

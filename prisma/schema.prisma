@@ -50,6 +50,7 @@ model Organization {
   users        User[]
   accounts     Account[]
   categories   Category[]
+  costCenters  CostCenter[]
   transactions Transaction[]
   budgets      Budget[]
 }
@@ -92,6 +93,16 @@ model Category {
   @@unique([organizationId, name, type, entity])
 }
 
+model CostCenter {
+  id             String        @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+
+  @@unique([organizationId, name])
+}
+
 model Transaction {
   id             String          @id @default(cuid())
   date           DateTime
@@ -100,6 +111,7 @@ model Transaction {
   type           TransactionType
   entity         Entity
   reconciled     Boolean         @default(false)
+  isTransfer     Boolean         @default(false)
   source         String          @default("manual")
   organizationId String
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -107,6 +119,8 @@ model Transaction {
   account        Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   categoryId     String?
   category       Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  costCenterId   String?
+  costCenter     CostCenter?     @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
 
   @@index([organizationId, entity, date])

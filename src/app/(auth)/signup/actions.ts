@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/auth";
+import { DEFAULT_CATEGORIES, DEFAULT_COST_CENTERS } from "@/lib/defaults";
 
 export type SignupState = { error?: string };
 
@@ -35,6 +36,9 @@ export async function signup(_prevState: SignupState, formData: FormData): Promi
       categories: {
         create: [...DEFAULT_CATEGORIES],
       },
+      costCenters: {
+        create: DEFAULT_COST_CENTERS.map((name) => ({ name })),
+      },
     },
   });
 
@@ -46,18 +50,3 @@ export async function signup(_prevState: SignupState, formData: FormData): Promi
 
   return {};
 }
-
-const DEFAULT_CATEGORIES = [
-  { name: "Moradia", type: "EXPENSE", entity: "PERSONAL", color: "#6366f1" },
-  { name: "Alimentação", type: "EXPENSE", entity: "PERSONAL", color: "#f59e0b" },
-  { name: "Transporte", type: "EXPENSE", entity: "PERSONAL", color: "#0ea5e9" },
-  { name: "Saúde", type: "EXPENSE", entity: "PERSONAL", color: "#ef4444" },
-  { name: "Lazer", type: "EXPENSE", entity: "PERSONAL", color: "#ec4899" },
-  { name: "Outros", type: "EXPENSE", entity: "PERSONAL", color: "#94a3b8" },
-  { name: "Salário", type: "INCOME", entity: "PERSONAL", color: "#22c55e" },
-  { name: "Fornecedores", type: "EXPENSE", entity: "BUSINESS", color: "#6366f1" },
-  { name: "Folha de pagamento", type: "EXPENSE", entity: "BUSINESS", color: "#ef4444" },
-  { name: "Marketing", type: "EXPENSE", entity: "BUSINESS", color: "#ec4899" },
-  { name: "Impostos", type: "EXPENSE", entity: "BUSINESS", color: "#f59e0b" },
-  { name: "Vendas", type: "INCOME", entity: "BUSINESS", color: "#22c55e" },
-] as const;

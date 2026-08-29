@@ -9,15 +9,22 @@ import {
   Tags,
   Wallet,
   LogOut,
+  ClipboardCheck,
+  Building2,
 } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
 
-const LINKS = [
+const MAIN_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/reconciliation", label: "Conciliação", icon: ClipboardCheck },
   { href: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
   { href: "/budget", label: "Orçamento", icon: Target },
   { href: "/categories", label: "Categorias", icon: Tags },
+];
+
+const SECONDARY_LINKS = [
   { href: "/accounts", label: "Contas", icon: Wallet },
+  { href: "/costcenters", label: "Centros de Custo", icon: Building2 },
 ];
 
 export default function Sidebar({
@@ -52,7 +59,29 @@ export default function Sidebar({
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {LINKS.map((link) => {
+          {MAIN_LINKS.map((link) => {
+            const active = pathname.startsWith(link.href);
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={withEntity(link.href)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-400 hover:bg-slate-900 hover:text-white"
+                }`}
+              >
+                <Icon size={18} strokeWidth={2} />
+                {link.label}
+              </Link>
+            );
+          })}
+
+          <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+            Cadastros
+          </p>
+          {SECONDARY_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             const Icon = link.icon;
             return (
@@ -93,7 +122,7 @@ export default function Sidebar({
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-slate-950 border-t border-slate-800 flex justify-around py-1.5">
-        {LINKS.map((link) => {
+        {MAIN_LINKS.map((link) => {
           const active = pathname.startsWith(link.href);
           const Icon = link.icon;
           return (
