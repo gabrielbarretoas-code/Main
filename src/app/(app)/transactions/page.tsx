@@ -13,6 +13,7 @@ export default async function TransactionsPage({
   const sp = await searchParams;
   const entity = parseEntity(sp.entity);
   const organizationId = await requireOrganizationId();
+  const openId = typeof sp.open === "string" ? sp.open : null;
 
   const [accounts, categories, costCenters, transactions] = await Promise.all([
     prisma.account.findMany({ where: { entity, organizationId }, orderBy: { name: "asc" } }),
@@ -73,6 +74,7 @@ export default async function TransactionsPage({
         }))}
         costCenters={costCenters}
         entity={entity}
+        initialSelectedId={openId}
       />
     </div>
   );
