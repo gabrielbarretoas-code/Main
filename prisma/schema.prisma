@@ -46,6 +46,11 @@ enum LoanDirection {
   LENT
 }
 
+enum AssetKind {
+  PROPERTY
+  VEHICLE
+}
+
 model Organization {
   id                   String             @id @default(cuid())
   name                 String
@@ -64,6 +69,7 @@ model Organization {
   budgets               Budget[]
   recurringTransactions RecurringTransaction[]
   loans                 Loan[]
+  assets                Asset[]
 }
 
 model User {
@@ -156,6 +162,8 @@ model Transaction {
   recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
   loanId         String?
   loan           Loan?           @relation(fields: [loanId], references: [id], onDelete: SetNull)
+  assetId        String?
+  asset          Asset?          @relation(fields: [assetId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @default(now()) @updatedAt
 
@@ -164,6 +172,36 @@ model Transaction {
   @@index([categoryId])
   @@index([recurringTransactionId])
   @@index([loanId])
+  @@index([assetId])
+}
+
+model Asset {
+  id               String          @id @default(cuid())
+  organizationId   String
+  organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity           Entity
+  kind             AssetKind
+  name             String
+  acquisitionDate  DateTime?
+  acquisitionValue Float?
+  currentValue     Float?
+  note             String?
+  createdAt        DateTime        @default(now())
+  documents        AssetDocument[]
+  transactions     Transaction[]
+
+  @@index([organizationId, entity])
+}
+
+model AssetDocument {
+  id         String   @id @default(cuid())
+  assetId    String
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  url        String
+  name       String
+  uploadedAt DateTime @default(now())
+
+  @@index([assetId])
 }
 
 model Loan {
