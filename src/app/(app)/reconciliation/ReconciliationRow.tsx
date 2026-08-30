@@ -17,7 +17,9 @@ export default function ReconciliationRow({
   categories,
   costCenters,
   suggestedCategoryId,
+  suggestedCostCenterId = null,
   suggestedIsTransfer,
+  suggestionLearned = false,
   entity,
   onCategoryCreated,
 }: {
@@ -25,7 +27,9 @@ export default function ReconciliationRow({
   categories: CategoryOption[];
   costCenters: CostCenter[];
   suggestedCategoryId: string | null;
+  suggestedCostCenterId?: string | null;
   suggestedIsTransfer: boolean;
+  suggestionLearned?: boolean;
   entity: Entity;
   onCategoryCreated: (cat: CategoryOption) => void;
 }) {
@@ -33,7 +37,9 @@ export default function ReconciliationRow({
   const [categoryId, setCategoryId] = useState(
     transaction.categoryId ?? suggestedCategoryId ?? ""
   );
-  const [costCenterId, setCostCenterId] = useState(transaction.costCenterId ?? "");
+  const [costCenterId, setCostCenterId] = useState(
+    transaction.costCenterId ?? suggestedCostCenterId ?? ""
+  );
   const [isTransfer, setIsTransfer] = useState(transaction.isTransfer || suggestedIsTransfer);
   const [confirmed, setConfirmed] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -116,7 +122,9 @@ export default function ReconciliationRow({
         )}
 
         {wasSuggested && (
-          <span className="text-xs text-brand-navy font-medium">sugerido</span>
+          <span className="text-xs text-brand-navy font-medium">
+            {suggestionLearned ? "aprendido" : "sugerido"}
+          </span>
         )}
 
         <label className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap">

@@ -32,7 +32,10 @@ export default function ReconciliationList({
   categories: CategoryOption[];
   costCenters: CostCenter[];
   entity: Entity;
-  suggestions: Record<string, { categoryId: string | null; isTransfer: boolean }>;
+  suggestions: Record<
+    string,
+    { categoryId: string | null; costCenterId: string | null; isTransfer: boolean; learned: boolean }
+  >;
 }) {
   const [categories, setCategories] = useState(initialCategories);
   const [showReconciled, setShowReconciled] = useState(false);
@@ -56,7 +59,9 @@ export default function ReconciliationList({
             categories={categories}
             costCenters={costCenters}
             suggestedCategoryId={suggestions[t.id]?.categoryId ?? null}
+            suggestedCostCenterId={suggestions[t.id]?.costCenterId ?? null}
             suggestedIsTransfer={suggestions[t.id]?.isTransfer ?? false}
+            suggestionLearned={suggestions[t.id]?.learned ?? false}
             entity={entity}
             onCategoryCreated={handleCategoryCreated}
           />
