@@ -3,7 +3,7 @@ import { CATEGORY_KEYWORD_RULES, TRANSFER_KEYWORDS } from "@/lib/defaults";
 type CategoryLike = { id: string; name: string };
 
 /** minúsculas e sem acento, pra casar "Eletrica" com "Elétrica" e afins. */
-function normalize(text: string): string {
+export function normalize(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")

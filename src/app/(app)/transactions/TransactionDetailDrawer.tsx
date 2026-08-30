@@ -154,7 +154,14 @@ export default function TransactionDetailDrawer({
                   {formatCurrency(cached.amount)}
                 </p>
                 <p className="text-xs text-slate-300 mt-1">
-                  {cached.accountName} · {cached.source === "import" ? "importado" : "manual"}
+                  {cached.accountName} ·{" "}
+                  {cached.source === "import"
+                    ? "importado"
+                    : cached.source === "whatsapp"
+                      ? "via WhatsApp"
+                      : cached.source === "open_finance"
+                        ? "Open Finance"
+                        : "manual"}
                 </p>
               </div>
 
@@ -166,7 +173,9 @@ export default function TransactionDetailDrawer({
                     <span>
                       {cached.reconciledBy === "system"
                         ? "Conciliado automaticamente pelo sistema"
-                        : "Conciliado manualmente por você"}{" "}
+                        : cached.reconciledBy === "whatsapp"
+                          ? "Registrado por você via WhatsApp (IA)"
+                          : "Conciliado manualmente por você"}{" "}
                       em {cached.reconciledAt ? formatDateTime(cached.reconciledAt) : "—"}
                       {wasAdjusted && (
                         <span className="flex items-center gap-1 text-amber-700 mt-1">
