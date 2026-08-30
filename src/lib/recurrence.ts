@@ -41,3 +41,22 @@ function startOfDay(d: Date): Date {
 function endOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
+
+/**
+ * Datas das N parcelas de um empréstimo, uma por mês, começando no mês
+ * seguinte à data de início (a data de início em si é o lançamento do
+ * principal, não uma parcela).
+ */
+export function computeLoanInstallments(loan: {
+  startDate: Date;
+  installmentCount: number;
+  installmentDay: number;
+}): Date[] {
+  const dates: Date[] = [];
+  const base = new Date(loan.startDate.getFullYear(), loan.startDate.getMonth(), 1);
+  for (let i = 1; i <= loan.installmentCount; i++) {
+    const month = new Date(base.getFullYear(), base.getMonth() + i, 1);
+    dates.push(clampToMonth(month.getFullYear(), month.getMonth(), loan.installmentDay));
+  }
+  return dates;
+}

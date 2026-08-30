@@ -41,6 +41,11 @@ enum RecurrenceFrequency {
   MONTHLY
 }
 
+enum LoanDirection {
+  BORROWED
+  LENT
+}
+
 model Organization {
   id                   String             @id @default(cuid())
   name                 String
@@ -58,6 +63,7 @@ model Organization {
   transactions          Transaction[]
   budgets               Budget[]
   recurringTransactions RecurringTransaction[]
+  loans                 Loan[]
 }
 
 model User {
@@ -85,6 +91,7 @@ model Account {
   createdAt      DateTime      @default(now())
   transactions   Transaction[]
   recurringTransactions RecurringTransaction[]
+  loans          Loan[]
 
   @@index([organizationId])
 }
@@ -104,6 +111,7 @@ model Category {
   transactions   Transaction[]
   budgets        Budget[]
   recurringTransactions RecurringTransaction[]
+  loans          Loan[]
 
   @@unique([organizationId, name, type, entity])
   @@index([parentId])
@@ -146,6 +154,8 @@ model Transaction {
   dedupeKey      String?
   recurringTransactionId String?
   recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
+  loanId         String?
+  loan           Loan?           @relation(fields: [loanId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @default(now()) @updatedAt
 
@@ -153,6 +163,31 @@ model Transaction {
   @@index([organizationId, entity, date])
   @@index([categoryId])
   @@index([recurringTransactionId])
+  @@index([loanId])
+}
+
+model Loan {
+  id                String        @id @default(cuid())
+  organizationId    String
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity            Entity
+  direction         LoanDirection
+  counterparty      String
+  principal         Float
+  accountId         String
+  account           Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId        String?
+  category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  startDate         DateTime
+  installmentCount  Int
+  installmentAmount Float
+  installmentDay    Int
+  interestRate      Float?
+  note              String?
+  createdAt         DateTime      @default(now())
+  transactions      Transaction[]
+
+  @@index([organizationId, entity])
 }
 
 model RecurringTransaction {
