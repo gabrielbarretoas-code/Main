@@ -77,6 +77,9 @@ model Account {
   type           AccountType
   entity         Entity
   hasAutoInvest  Boolean       @default(false)
+  creditLimit    Float?
+  closingDay     Int?
+  dueDay         Int?
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())

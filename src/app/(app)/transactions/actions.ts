@@ -213,6 +213,7 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
   const file = formData.get("file") as File | null;
   const accountId = String(formData.get("accountId") ?? "");
   const entity = String(formData.get("entity") ?? "PERSONAL") as Entity;
+  const invertSign = formData.get("invertSign") === "on";
 
   if (!file || !accountId) {
     return { imported: 0, skipped: 0, error: "Selecione um arquivo e uma conta." };
@@ -270,6 +271,13 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     }
   } catch {
     return { imported: 0, skipped: 0, error: "Não foi possível ler esse arquivo." };
+  }
+
+  // Faturas de cartão costumam exportar compras como valor positivo (é
+  // dinheiro que você deve, não que saiu de uma conta) — inverter o sinal
+  // aqui faz o mesmo importador de extrato classificar compra como despesa.
+  if (invertSign) {
+    transactions = transactions.map((t) => ({ ...t, amount: -t.amount }));
   }
 
   // Nunca duplicar lançamento: cada linha importada ganha uma chave de
