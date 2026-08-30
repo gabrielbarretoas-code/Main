@@ -136,7 +136,7 @@ export default function AssetCard({
                 className="flex items-center gap-1.5 text-xs bg-slate-100 rounded-full pl-2.5 pr-1.5 py-1"
               >
                 {IMAGE_EXT.test(doc.name) ? <Paperclip size={12} /> : <FileText size={12} />}
-                <a href={doc.url} target="_blank" rel="noopener noreferrer" className="hover:underline max-w-[140px] truncate">
+                <a href={`/api/attachments/asset-document/${doc.id}`} target="_blank" rel="noopener noreferrer" className="hover:underline max-w-[140px] truncate">
                   {doc.name}
                 </a>
                 <button

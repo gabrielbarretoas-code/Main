@@ -73,7 +73,7 @@ export async function uploadAssetDocument(assetId: string, formData: FormData): 
   let blobUrl: string;
   try {
     const blob = await put(`asset-documents/${organizationId}/${assetId}-${Date.now()}-${file.name}`, file, {
-      access: "public",
+      access: "private",
     });
     blobUrl = blob.url;
   } catch (e) {

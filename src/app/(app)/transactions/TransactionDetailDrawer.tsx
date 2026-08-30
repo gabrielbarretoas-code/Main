@@ -251,16 +251,16 @@ export default function TransactionDetailDrawer({
                 {cached.attachmentUrl ? (
                   <div className="border border-slate-200 rounded-lg p-3 space-y-2">
                     {IMAGE_EXT.test(cached.attachmentName ?? "") ? (
-                      <a href={cached.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                      <a href={`/api/attachments/transaction/${cached.id}`} target="_blank" rel="noopener noreferrer">
                         <img
-                          src={cached.attachmentUrl}
+                          src={`/api/attachments/transaction/${cached.id}`}
                           alt={cached.attachmentName ?? "Anexo"}
                           className="max-h-48 rounded-md border border-slate-100"
                         />
                       </a>
                     ) : (
                       <a
-                        href={cached.attachmentUrl}
+                        href={`/api/attachments/transaction/${cached.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 text-sm text-brand-navy hover:underline"
