@@ -16,7 +16,7 @@ export default function ImportForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<
-    { imported: number; skipped: number; autoReconciled?: number; error?: string } | null
+    { imported: number; skipped: number; duplicates?: number; autoReconciled?: number; error?: string } | null
   >(null);
 
   return (
@@ -71,6 +71,9 @@ export default function ImportForm({
           ) : (
             <>
               {result.imported} lançamento(s) importado(s), {result.skipped} ignorado(s)
+              {!!result.duplicates && (
+                <> ({result.duplicates} já existente(s) na conta — não duplicado(s))</>
+              )}
               {!!result.autoReconciled && (
                 <> ({result.autoReconciled} identificado(s) como aplicação automática)</>
               )}

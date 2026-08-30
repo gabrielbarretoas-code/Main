@@ -4,14 +4,13 @@ import { useState, useTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { confirmReconciliation, quickCreateCategory } from "./actions";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { buildCategoryOptions, type CategoryOption } from "@/lib/categoryOptions";
+import type { CategoryOption } from "@/lib/categoryOptions";
+import CategorySubcategoryPicker from "@/components/CategorySubcategoryPicker";
 import type { Entity } from "@/lib/types";
 import type { TransactionRowData } from "./ReconciliationList";
 
 export type { CategoryOption };
 type CostCenter = { id: string; name: string };
-
-const NEW_CATEGORY_VALUE = "__new__";
 
 export default function ReconciliationRow({
   transaction,
@@ -36,36 +35,21 @@ export default function ReconciliationRow({
   );
   const [costCenterId, setCostCenterId] = useState(transaction.costCenterId ?? "");
   const [isTransfer, setIsTransfer] = useState(transaction.isTransfer || suggestedIsTransfer);
-  const [creatingCategory, setCreatingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const wasSuggested =
     !wasAlreadyReconciled && suggestedCategoryId !== null && categoryId === suggestedCategoryId;
-  const options = buildCategoryOptions(categories, transaction.type);
 
-  function handleCategorySelect(value: string) {
-    if (value === NEW_CATEGORY_VALUE) {
-      setCreatingCategory(true);
-      return;
-    }
-    setCategoryId(value);
-  }
-
-  function handleCreateCategory() {
-    const name = newCategoryName.trim();
-    if (!name) return;
-    startTransition(async () => {
-      const created = await quickCreateCategory(name, transaction.type, entity);
-      if (created) {
-        onCategoryCreated({ ...created, parentId: null, type: transaction.type });
-        setCategoryId(created.id);
-      }
-      setCreatingCategory(false);
-      setNewCategoryName("");
-    });
+  async function handleCreateCategory(
+    name: string,
+    type: typeof transaction.type,
+    parentId: string | null
+  ): Promise<CategoryOption | null> {
+    const created = await quickCreateCategory(name, type, entity, parentId);
+    if (!created) return null;
+    return { ...created, parentId, type };
   }
 
   function handleConfirm() {
@@ -114,54 +98,24 @@ export default function ReconciliationRow({
       </span>
 
       <div className="flex-1 flex flex-wrap items-center gap-2">
-        {!isTransfer && !creatingCategory ? (
-          <select
-            value={categoryId}
-            onChange={(e) => handleCategorySelect(e.target.value)}
-            className={`border rounded-md px-2 py-1.5 text-sm ${
-              wasSuggested ? "border-brand-gold bg-brand-gold-light" : "border-slate-300"
-            }`}
-          >
-            <option value="">Selecione a categoria…</option>
-            {options.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-            <option value={NEW_CATEGORY_VALUE}>+ Criar nova categoria…</option>
-          </select>
-        ) : isTransfer ? (
+        {!isTransfer ? (
+          <span className={wasSuggested ? "rounded-md ring-2 ring-brand-gold" : undefined}>
+            <CategorySubcategoryPicker
+              type={transaction.type}
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
+              onCategoryCreated={onCategoryCreated}
+              createCategory={handleCreateCategory}
+            />
+          </span>
+        ) : (
           <span className="text-xs text-slate-500 italic">
             Não conta como despesa/receita — só muda de lugar.
           </span>
-        ) : (
-          <span className="flex items-center gap-1.5">
-            <input
-              autoFocus
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Nome da categoria"
-              className="border border-slate-300 rounded-md px-2 py-1.5 text-sm w-40"
-            />
-            <button
-              type="button"
-              disabled={pending}
-              onClick={handleCreateCategory}
-              className="text-xs bg-slate-800 text-white rounded-md px-2 py-1.5 hover:bg-slate-900"
-            >
-              Criar
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreatingCategory(false)}
-              className="text-xs text-slate-500"
-            >
-              Cancelar
-            </button>
-          </span>
         )}
 
-        {wasSuggested && !creatingCategory && (
+        {wasSuggested && (
           <span className="text-xs text-brand-navy font-medium">sugerido</span>
         )}
 
@@ -169,10 +123,7 @@ export default function ReconciliationRow({
           <input
             type="checkbox"
             checked={isTransfer}
-            onChange={(e) => {
-              setIsTransfer(e.target.checked);
-              setCreatingCategory(false);
-            }}
+            onChange={(e) => setIsTransfer(e.target.checked)}
           />
           Transferência / aplicação
           {suggestedIsTransfer && <span className="text-brand-navy font-medium">(sugerido)</span>}

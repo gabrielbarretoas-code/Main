@@ -128,9 +128,15 @@ model Transaction {
   costCenterId   String?
   costCenter     CostCenter?     @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   reconciledAt   DateTime?
+  reconciledBy   String?
+  note           String?
+  attachmentUrl  String?
+  attachmentName String?
+  dedupeKey      String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @default(now()) @updatedAt
 
+  @@unique([accountId, dedupeKey])
   @@index([organizationId, entity, date])
   @@index([categoryId])
 }
