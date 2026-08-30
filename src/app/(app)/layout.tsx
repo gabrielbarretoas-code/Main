@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           userName={session?.user.name ?? ""}
         />
       </Suspense>
-      <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8 pb-20 md:pb-8">
+      <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8">
         <div className="max-w-6xl mx-auto">{children}</div>
       </main>
     </div>
