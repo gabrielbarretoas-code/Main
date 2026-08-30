@@ -37,6 +37,10 @@ enum UserRole {
   MEMBER
 }
 
+enum RecurrenceFrequency {
+  MONTHLY
+}
+
 model Organization {
   id                   String             @id @default(cuid())
   name                 String
@@ -47,12 +51,13 @@ model Organization {
   trialEndsAt          DateTime?
   createdAt            DateTime           @default(now())
 
-  users        User[]
-  accounts     Account[]
-  categories   Category[]
-  costCenters  CostCenter[]
-  transactions Transaction[]
-  budgets      Budget[]
+  users                 User[]
+  accounts              Account[]
+  categories            Category[]
+  costCenters           CostCenter[]
+  transactions          Transaction[]
+  budgets               Budget[]
+  recurringTransactions RecurringTransaction[]
 }
 
 model User {
@@ -76,6 +81,7 @@ model Account {
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime      @default(now())
   transactions   Transaction[]
+  recurringTransactions RecurringTransaction[]
 
   @@index([organizationId])
 }
@@ -94,6 +100,7 @@ model Category {
   children       Category[]      @relation("CategoryHierarchy")
   transactions   Transaction[]
   budgets        Budget[]
+  recurringTransactions RecurringTransaction[]
 
   @@unique([organizationId, name, type, entity])
   @@index([parentId])
@@ -105,6 +112,7 @@ model CostCenter {
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   transactions   Transaction[]
+  recurringTransactions RecurringTransaction[]
 
   @@unique([organizationId, name])
 }
@@ -133,12 +141,40 @@ model Transaction {
   attachmentUrl  String?
   attachmentName String?
   dedupeKey      String?
+  recurringTransactionId String?
+  recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @default(now()) @updatedAt
 
   @@unique([accountId, dedupeKey])
   @@index([organizationId, entity, date])
   @@index([categoryId])
+  @@index([recurringTransactionId])
+}
+
+model RecurringTransaction {
+  id             String              @id @default(cuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity         Entity
+  type           TransactionType
+  description    String
+  amount         Float
+  accountId      String
+  account        Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  costCenterId   String?
+  costCenter     CostCenter?         @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  frequency      RecurrenceFrequency @default(MONTHLY)
+  dayOfMonth     Int
+  startDate      DateTime
+  endDate        DateTime?
+  active         Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  transactions   Transaction[]
+
+  @@index([organizationId, entity])
 }
 
 model Budget {
