@@ -166,7 +166,8 @@ export async function uploadAttachment(transactionId: string, formData: FormData
       { access: "public" }
     );
     blobUrl = blob.url;
-  } catch {
+  } catch (e) {
+    console.error("Falha ao enviar anexo pro Vercel Blob:", e);
     return {
       ok: false,
       error: "Não foi possível enviar o anexo. O armazenamento de arquivos (Vercel Blob) precisa estar habilitado no projeto.",
