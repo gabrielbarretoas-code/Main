@@ -70,6 +70,7 @@ model Organization {
   recurringTransactions RecurringTransaction[]
   loans                 Loan[]
   assets                Asset[]
+  reminders             Reminder[]
 }
 
 model User {
@@ -265,4 +266,18 @@ model Budget {
   plannedAmount  Float
 
   @@unique([organizationId, month, year, entity, categoryId])
+}
+
+model Reminder {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity         Entity
+  title          String
+  note           String?
+  dueDate        DateTime?
+  done           Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, entity])
 }
