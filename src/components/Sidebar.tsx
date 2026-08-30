@@ -22,6 +22,7 @@ import {
   Bell,
   Menu,
   X,
+  Settings,
 } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
 
@@ -43,6 +44,7 @@ const SECONDARY_LINKS = [
   { href: "/assets", label: "Imóveis e Automóveis", icon: Home },
   { href: "/analytics", label: "Análises", icon: BarChart3 },
   { href: "/reminders", label: "Lembretes", icon: Bell },
+  { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
 type NavLinkDef = { href: string; label: string; icon: typeof LayoutDashboard };

@@ -21,9 +21,11 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Exclui rotas de auth, assets internos do Next e qualquer arquivo estático
-  // de public/ (identificado por ter um "." no caminho, ex: logo.jpeg,
-  // manifest.json, favicon.ico) — sem isso, pedir a própria logo sem estar
-  // logado cai no redirecionamento pra /login em vez de servir a imagem.
-  matcher: ["/((?!api/auth|_next/static|_next/image|.*\\..*).*)"],
+  // Exclui rotas de auth, o webhook do WhatsApp (chamado pela própria Meta,
+  // sem sessão — se autentica por assinatura própria, não por login),
+  // assets internos do Next e qualquer arquivo estático de public/
+  // (identificado por ter um "." no caminho, ex: logo.jpeg, manifest.json,
+  // favicon.ico) — sem isso, pedir a própria logo sem estar logado cai no
+  // redirecionamento pra /login em vez de servir a imagem.
+  matcher: ["/((?!api/auth|api/whatsapp|_next/static|_next/image|.*\\..*).*)"],
 };

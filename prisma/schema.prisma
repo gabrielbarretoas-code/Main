@@ -55,6 +55,7 @@ model Organization {
   id                   String             @id @default(cuid())
   name                 String
   whatsappPhone        String?            @unique
+  whatsappLinkCode     String?            @unique
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?            @unique
   subscriptionStatus   SubscriptionStatus @default(TRIALING)
@@ -73,6 +74,7 @@ model Organization {
   reminders             Reminder[]
   openFinanceConnections OpenFinanceConnection[]
   merchantMemories      MerchantCategoryMemory[]
+  whatsappMessages      WhatsAppMessage[]
 }
 
 model User {
@@ -339,4 +341,20 @@ model MerchantCategoryMemory {
 
   @@unique([organizationId, entity, merchantKey])
   @@index([organizationId, entity])
+}
+
+/**
+ * Histórico de conversa do assistente de WhatsApp — só o texto legível de
+ * cada turno (não os detalhes internos de chamada de ferramenta), pra dar
+ * memória de curto prazo à IA sem precisar guardar imagem/anexo.
+ */
+model WhatsAppMessage {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
 }
