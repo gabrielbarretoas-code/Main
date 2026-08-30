@@ -12,20 +12,41 @@ import {
   LogOut,
   ClipboardCheck,
   Building2,
+  FileText,
+  Repeat,
+  HandCoins,
+  CreditCard,
+  Home,
+  BarChart3,
+  Bell,
 } from "lucide-react";
 import { logout } from "@/app/(app)/actions";
 
 const MAIN_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/reconciliation", label: "Conciliação", icon: ClipboardCheck },
   { href: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-  { href: "/budget", label: "Orçamento", icon: Target },
+  { href: "/reconciliation", label: "Conciliação", icon: ClipboardCheck },
+  { href: "/documents", label: "Documentos Fiscais", icon: FileText },
   { href: "/categories", label: "Categorias", icon: Tags },
+  { href: "/budget", label: "Orçamento", icon: Target },
+  { href: "/recurring", label: "Recorrências", icon: Repeat },
+  { href: "/loans", label: "Empréstimos", icon: HandCoins },
 ];
 
 const SECONDARY_LINKS = [
-  { href: "/accounts", label: "Contas", icon: Wallet },
+  { href: "/accounts", label: "Contas Bancárias", icon: Wallet },
   { href: "/costcenters", label: "Centros de Custo", icon: Building2 },
+  { href: "/credit-cards", label: "Cartões de Crédito e Faturas", icon: CreditCard },
+  { href: "/assets", label: "Imóveis e Automóveis", icon: Home },
+  { href: "/analytics", label: "Análises", icon: BarChart3 },
+  { href: "/reminders", label: "Lembretes", icon: Bell },
+];
+
+const MOBILE_TABS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
+  { href: "/reconciliation", label: "Conciliação", icon: ClipboardCheck },
+  { href: "/budget", label: "Orçamento", icon: Target },
 ];
 
 export default function Sidebar({
@@ -63,7 +84,7 @@ export default function Sidebar({
           <EntitySwitch entity={entity} pathname={pathname} />
         </div>
 
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
           {MAIN_LINKS.map((link) => {
             const active = pathname.startsWith(link.href);
             const Icon = link.icon;
@@ -132,7 +153,7 @@ export default function Sidebar({
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-brand-navy border-t border-white/10 flex justify-around py-1.5">
-        {MAIN_LINKS.map((link) => {
+        {MOBILE_TABS.map((link) => {
           const active = pathname.startsWith(link.href);
           const Icon = link.icon;
           return (

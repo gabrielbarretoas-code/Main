@@ -37,15 +37,17 @@ export default function TransactionsTable({
   categories: initialCategories,
   costCenters,
   entity,
+  initialSelectedId,
 }: {
   transactions: TransactionRowData[];
   categories: CategoryOption[];
   costCenters: CostCenter[];
   entity: Entity;
+  initialSelectedId?: string | null;
 }) {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [categories, setCategories] = useState(initialCategories);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null);
 
   const selected = transactions.find((t) => t.id === selectedId) ?? null;
 
