@@ -163,7 +163,7 @@ export async function uploadAttachment(transactionId: string, formData: FormData
     const blob = await put(
       `receipts/${organizationId}/${transactionId}-${Date.now()}-${file.name}`,
       file,
-      { access: "public" }
+      { access: "private" }
     );
     blobUrl = blob.url;
   } catch (e) {

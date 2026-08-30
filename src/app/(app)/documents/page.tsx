@@ -57,7 +57,7 @@ export default async function DocumentsPage({
                 {IMAGE_EXT.test(t.attachmentName ?? "") ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={t.attachmentUrl!}
+                    src={`/api/attachments/transaction/${t.id}`}
                     alt={t.attachmentName ?? "Documento"}
                     className="w-full h-full object-cover"
                   />
