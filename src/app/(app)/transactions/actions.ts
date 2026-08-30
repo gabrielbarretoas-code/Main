@@ -16,6 +16,7 @@ import {
   type ParsedTransaction,
 } from "@/lib/statementImport";
 import { importTransactionRecords } from "@/lib/transactionImport";
+import { learnMerchantChoice } from "@/lib/merchantMemory";
 
 export async function createTransaction(formData: FormData) {
   const organizationId = await requireOrganizationId();
@@ -55,6 +56,14 @@ export async function createTransaction(formData: FormData) {
       reconciledBy: "user",
     },
   });
+
+  if (categoryId) {
+    await learnMerchantChoice(organizationId, entity, description, {
+      categoryId,
+      costCenterId: null,
+      isTransfer: false,
+    });
+  }
 
   revalidatePath("/transactions");
   revalidatePath("/dashboard");
@@ -112,6 +121,12 @@ export async function updateTransactionDetails(
       reconciledBy: existing.reconciledBy ?? "user",
       note: note?.trim() || null,
     },
+  });
+
+  await learnMerchantChoice(organizationId, existing.entity, existing.description, {
+    categoryId: isTransfer ? null : categoryId,
+    costCenterId: isTransfer ? null : costCenterId,
+    isTransfer,
   });
 
   revalidatePath("/transactions");

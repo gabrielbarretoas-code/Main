@@ -72,6 +72,7 @@ model Organization {
   assets                Asset[]
   reminders             Reminder[]
   openFinanceConnections OpenFinanceConnection[]
+  merchantMemories      MerchantCategoryMemory[]
 }
 
 model User {
@@ -121,6 +122,7 @@ model Category {
   budgets        Budget[]
   recurringTransactions RecurringTransaction[]
   loans          Loan[]
+  merchantMemories MerchantCategoryMemory[]
 
   @@unique([organizationId, name, type, entity])
   @@index([parentId])
@@ -133,6 +135,7 @@ model CostCenter {
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   transactions   Transaction[]
   recurringTransactions RecurringTransaction[]
+  merchantMemories MerchantCategoryMemory[]
 
   @@unique([organizationId, name])
 }
@@ -310,4 +313,30 @@ model OpenFinanceAccountLink {
   createdAt       DateTime @default(now())
 
   @@index([connectionId])
+}
+
+/**
+ * "Memória" de categorização por estabelecimento: toda vez que o usuário
+ * confirma manualmente a categoria de um lançamento, guardamos aqui pra
+ * sugerir automaticamente da próxima vez que o mesmo estabelecimento
+ * aparecer — sem depender só de uma lista fixa de palavras-chave.
+ */
+model MerchantCategoryMemory {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity          Entity
+  merchantKey     String
+  categoryId      String?
+  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  costCenterId    String?
+  costCenter      CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  isTransfer      Boolean      @default(false)
+  confirmedCount  Int          @default(1)
+  lastConfirmedAt DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @default(now()) @updatedAt
+
+  @@unique([organizationId, entity, merchantKey])
+  @@index([organizationId, entity])
 }

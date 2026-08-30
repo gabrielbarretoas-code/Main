@@ -3,7 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireOrganizationId } from "@/lib/session";
-import { suggestCategoryId, suggestIsTransfer } from "@/lib/categorySuggestion";
+import { suggestForTransaction } from "@/lib/categorySuggestion";
+import { learnMerchantChoice, loadMerchantMemory } from "@/lib/merchantMemory";
 import type { Entity, TransactionType } from "@/lib/types";
 
 export async function confirmReconciliation(
@@ -36,6 +37,12 @@ export async function confirmReconciliation(
       reconciledAt: existing.reconciledAt ?? new Date(),
       reconciledBy: existing.reconciledBy ?? "user",
     },
+  });
+
+  await learnMerchantChoice(organizationId, existing.entity, existing.description, {
+    categoryId: isTransfer ? null : categoryId,
+    costCenterId: isTransfer ? null : costCenterId,
+    isTransfer,
   });
 
   revalidatePath("/reconciliation");
@@ -80,25 +87,35 @@ export async function quickCreateCategory(
 export async function bulkConfirmSuggested(entity: Entity) {
   const organizationId = await requireOrganizationId();
 
-  const [pendingTransactions, categories] = await Promise.all([
+  const [pendingTransactions, categories, memory] = await Promise.all([
     prisma.transaction.findMany({ where: { organizationId, entity, reconciled: false } }),
     prisma.category.findMany({ where: { organizationId, entity } }),
+    loadMerchantMemory(organizationId, entity),
   ]);
 
   for (const t of pendingTransactions) {
-    if (suggestIsTransfer(t.description)) {
-      await prisma.transaction.update({
-        where: { id: t.id },
-        data: { isTransfer: true, categoryId: null, reconciled: true },
-      });
-      continue;
-    }
-    const suggestion = suggestCategoryId(t.description, categories);
-    if (!suggestion) continue;
+    const suggestion = suggestForTransaction(t.description, categories, memory);
+    if (suggestion.source === "none") continue;
+
     await prisma.transaction.update({
       where: { id: t.id },
-      data: { categoryId: suggestion, reconciled: true },
+      data: {
+        isTransfer: suggestion.isTransfer,
+        categoryId: suggestion.isTransfer ? null : suggestion.categoryId,
+        costCenterId: suggestion.isTransfer ? null : suggestion.costCenterId,
+        reconciled: true,
+        reconciledAt: new Date(),
+        reconciledBy: "user",
+      },
     });
+
+    if (suggestion.source === "keyword") {
+      await learnMerchantChoice(organizationId, entity, t.description, {
+        categoryId: suggestion.isTransfer ? null : suggestion.categoryId,
+        costCenterId: suggestion.isTransfer ? null : suggestion.costCenterId,
+        isTransfer: suggestion.isTransfer,
+      });
+    }
   }
 
   revalidatePath("/reconciliation");
