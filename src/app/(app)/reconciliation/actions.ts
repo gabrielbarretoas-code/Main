@@ -14,6 +14,9 @@ export async function confirmReconciliation(
 ) {
   const organizationId = await requireOrganizationId();
 
+  const existing = await prisma.transaction.findFirst({ where: { id: transactionId, organizationId } });
+  if (!existing) return;
+
   if (categoryId) {
     const category = await prisma.category.findFirst({ where: { id: categoryId, organizationId } });
     if (!category) return;
@@ -23,13 +26,15 @@ export async function confirmReconciliation(
     if (!costCenter) return;
   }
 
-  await prisma.transaction.updateMany({
-    where: { id: transactionId, organizationId },
+  await prisma.transaction.update({
+    where: { id: transactionId },
     data: {
       categoryId: isTransfer ? null : categoryId,
       costCenterId: isTransfer ? null : costCenterId,
       isTransfer,
       reconciled: true,
+      reconciledAt: existing.reconciledAt ?? new Date(),
+      reconciledBy: existing.reconciledBy ?? "user",
     },
   });
 
@@ -42,11 +47,19 @@ export async function confirmReconciliation(
 export async function quickCreateCategory(
   name: string,
   type: TransactionType,
-  entity: Entity
+  entity: Entity,
+  parentId: string | null = null
 ): Promise<{ id: string; name: string; color: string } | null> {
   const organizationId = await requireOrganizationId();
   const trimmed = name.trim();
   if (!trimmed) return null;
+
+  if (parentId) {
+    const parent = await prisma.category.findFirst({
+      where: { id: parentId, organizationId, type, entity },
+    });
+    if (!parent) return null;
+  }
 
   const colors = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b", "#0ea5e9", "#a855f7", "#ec4899", "#14b8a6"];
   const color = colors[Math.floor(Math.random() * colors.length)];
@@ -54,11 +67,12 @@ export async function quickCreateCategory(
   const category = await prisma.category.upsert({
     where: { organizationId_name_type_entity: { organizationId, name: trimmed, type, entity } },
     update: {},
-    create: { name: trimmed, type, entity, color, organizationId },
+    create: { name: trimmed, type, entity, color, organizationId, parentId },
   });
 
   revalidatePath("/categories");
   revalidatePath("/reconciliation");
+  revalidatePath("/transactions");
 
   return { id: category.id, name: category.name, color: category.color };
 }

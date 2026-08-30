@@ -22,8 +22,12 @@ export type TransactionRowData = {
   isTransfer: boolean;
   reconciled: boolean;
   reconciledAt: Date | null;
+  reconciledBy: string | null;
   updatedAt: Date;
   source: string;
+  note: string | null;
+  attachmentUrl: string | null;
+  attachmentName: string | null;
 };
 
 type CostCenter = { id: string; name: string };
@@ -60,12 +64,16 @@ export default function TransactionsTable({
     );
   }
 
-  async function handleCreateCategory(name: string, type: TransactionType) {
-    const created = await quickCreateCategory(name, type, entity);
+  async function handleCreateCategory(name: string, type: TransactionType, parentId: string | null) {
+    const created = await quickCreateCategory(name, type, entity, parentId);
     if (!created) return null;
-    const option: CategoryOption = { ...created, parentId: null, type };
+    const option: CategoryOption = { ...created, parentId, type };
     setCategories((prev) => [...prev, option]);
     return option;
+  }
+
+  function handleAttachmentChanged(id: string, attachmentUrl: string | null, attachmentName: string | null) {
+    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, attachmentUrl, attachmentName } : t)));
   }
 
   return (
@@ -156,6 +164,7 @@ export default function TransactionsTable({
         onClose={() => setSelectedId(null)}
         onSaved={handleSaved}
         onCreateCategory={handleCreateCategory}
+        onAttachmentChanged={handleAttachmentChanged}
       />
     </>
   );

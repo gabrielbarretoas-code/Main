@@ -57,8 +57,12 @@ export default async function TransactionsPage({
           isTransfer: t.isTransfer,
           reconciled: t.reconciled,
           reconciledAt: t.reconciledAt,
+          reconciledBy: t.reconciledBy,
           updatedAt: t.updatedAt,
           source: t.source,
+          note: t.note,
+          attachmentUrl: t.attachmentUrl,
+          attachmentName: t.attachmentName,
         }))}
         categories={categories.map((c) => ({
           id: c.id,

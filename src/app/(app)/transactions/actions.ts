@@ -1,11 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import Papa from "papaparse";
+import { put, del } from "@vercel/blob";
 import { requireOrganizationId } from "@/lib/session";
 import type { Entity, TransactionType } from "@/lib/types";
 import {
+  computeDedupeKey,
   decodeFileText,
   detectFileKind,
   normalizeGenericRow,
@@ -26,6 +29,7 @@ export async function createTransaction(formData: FormData) {
   const date = String(formData.get("date") ?? new Date().toISOString().slice(0, 10));
   const accountId = String(formData.get("accountId") ?? "");
   const categoryId = String(formData.get("categoryId") ?? "") || null;
+  const note = String(formData.get("note") ?? "").trim() || null;
 
   if (!description || !accountId || amount <= 0) return;
 
@@ -47,7 +51,10 @@ export async function createTransaction(formData: FormData) {
       categoryId,
       organizationId,
       source: "manual",
+      note,
       reconciled: true,
+      reconciledAt: new Date(),
+      reconciledBy: "user",
     },
   });
 
@@ -67,17 +74,20 @@ export async function deleteTransaction(id: string) {
 export type TransactionDetailsUpdate = {
   reconciled: boolean;
   reconciledAt: Date | null;
+  reconciledBy: string | null;
   updatedAt: Date;
   categoryId: string | null;
   costCenterId: string | null;
   isTransfer: boolean;
+  note: string | null;
 };
 
 export async function updateTransactionDetails(
   transactionId: string,
   categoryId: string | null,
   costCenterId: string | null,
-  isTransfer: boolean
+  isTransfer: boolean,
+  note: string | null
 ): Promise<TransactionDetailsUpdate | null> {
   const organizationId = await requireOrganizationId();
 
@@ -101,6 +111,8 @@ export async function updateTransactionDetails(
       isTransfer,
       reconciled: true,
       reconciledAt: existing.reconciledAt ?? new Date(),
+      reconciledBy: existing.reconciledBy ?? "user",
+      note: note?.trim() || null,
     },
   });
 
@@ -112,16 +124,86 @@ export async function updateTransactionDetails(
   return {
     reconciled: updated.reconciled,
     reconciledAt: updated.reconciledAt,
+    reconciledBy: updated.reconciledBy,
     updatedAt: updated.updatedAt,
     categoryId: updated.categoryId,
     costCenterId: updated.costCenterId,
     isTransfer: updated.isTransfer,
+    note: updated.note,
   };
+}
+
+export type AttachmentResult =
+  | { ok: true; attachmentUrl: string; attachmentName: string }
+  | { ok: false; error: string };
+
+export async function uploadAttachment(transactionId: string, formData: FormData): Promise<AttachmentResult> {
+  const organizationId = await requireOrganizationId();
+  const existing = await prisma.transaction.findFirst({ where: { id: transactionId, organizationId } });
+  if (!existing) return { ok: false, error: "Lançamento não encontrado." };
+
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "Selecione um arquivo." };
+
+  let blobUrl: string;
+  try {
+    const blob = await put(
+      `receipts/${organizationId}/${transactionId}-${Date.now()}-${file.name}`,
+      file,
+      { access: "public" }
+    );
+    blobUrl = blob.url;
+  } catch {
+    return {
+      ok: false,
+      error: "Não foi possível enviar o anexo. O armazenamento de arquivos (Vercel Blob) precisa estar habilitado no projeto.",
+    };
+  }
+
+  if (existing.attachmentUrl) {
+    try {
+      await del(existing.attachmentUrl);
+    } catch {
+      // arquivo antigo pode já não existir mais; ignora.
+    }
+  }
+
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: { attachmentUrl: blobUrl, attachmentName: file.name },
+  });
+
+  revalidatePath("/transactions");
+
+  return { ok: true, attachmentUrl: blobUrl, attachmentName: file.name };
+}
+
+export async function removeAttachment(transactionId: string): Promise<boolean> {
+  const organizationId = await requireOrganizationId();
+  const existing = await prisma.transaction.findFirst({ where: { id: transactionId, organizationId } });
+  if (!existing) return false;
+
+  if (existing.attachmentUrl) {
+    try {
+      await del(existing.attachmentUrl);
+    } catch {
+      // já pode não existir mais; ignora.
+    }
+  }
+
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: { attachmentUrl: null, attachmentName: null },
+  });
+
+  revalidatePath("/transactions");
+  return true;
 }
 
 type ImportResult = {
   imported: number;
   skipped: number;
+  duplicates?: number;
   autoReconciled?: number;
   error?: string;
 };
@@ -190,35 +272,65 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     return { imported: 0, skipped: 0, error: "Não foi possível ler esse arquivo." };
   }
 
-  let imported = 0;
+  // Nunca duplicar lançamento: cada linha importada ganha uma chave de
+  // deduplicação (FITID do banco quando disponível, senão uma assinatura por
+  // data+valor+descrição) e é comparada tanto com o que já existe na conta
+  // quanto com o restante deste mesmo arquivo antes de ser gravada.
+  const existingKeys = new Set(
+    (
+      await prisma.transaction.findMany({
+        where: { accountId, dedupeKey: { not: null } },
+        select: { dedupeKey: true },
+      })
+    ).map((t) => t.dedupeKey as string)
+  );
+
   let autoReconciled = 0;
+  let duplicates = 0;
+  const seenInBatch = new Set<string>();
+  const toCreate: Prisma.TransactionCreateManyInput[] = [];
+
   for (const t of transactions) {
+    const dedupeKey = computeDedupeKey(t);
+    if (existingKeys.has(dedupeKey) || seenInBatch.has(dedupeKey)) {
+      duplicates++;
+      continue;
+    }
+    seenInBatch.add(dedupeKey);
+
     const isKnownTransfer = account.hasAutoInvest && suggestIsTransfer(t.description);
     if (isKnownTransfer) autoReconciled++;
 
-    await prisma.transaction.create({
-      data: {
-        description: t.description,
-        amount: Math.abs(t.amount),
-        type: t.amount < 0 ? "EXPENSE" : "INCOME",
-        entity,
-        date: t.date,
-        accountId,
-        organizationId,
-        source: "import",
-        isTransfer: isKnownTransfer,
-        reconciled: isKnownTransfer,
-      },
+    toCreate.push({
+      description: t.description,
+      amount: Math.abs(t.amount),
+      type: t.amount < 0 ? "EXPENSE" : "INCOME",
+      entity,
+      date: t.date,
+      accountId,
+      organizationId,
+      source: "import",
+      isTransfer: isKnownTransfer,
+      reconciled: isKnownTransfer,
+      reconciledAt: isKnownTransfer ? new Date() : null,
+      reconciledBy: isKnownTransfer ? "system" : null,
+      dedupeKey,
     });
-    imported++;
   }
 
-  const skipped = Math.max(rowCount - imported, 0);
+  if (toCreate.length > 0) {
+    // skipDuplicates é uma segunda camada de proteção contra corrida (duas
+    // importações simultâneas) — a filtragem acima já cobre o caso normal.
+    await prisma.transaction.createMany({ data: toCreate, skipDuplicates: true });
+  }
+
+  const imported = toCreate.length;
+  const skipped = Math.max(rowCount - imported - duplicates, 0);
 
   revalidatePath("/transactions");
   revalidatePath("/reconciliation");
   revalidatePath("/dashboard");
   revalidatePath("/budget");
 
-  return { imported, skipped, autoReconciled };
+  return { imported, skipped, duplicates, autoReconciled };
 }

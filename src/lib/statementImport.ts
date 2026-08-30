@@ -2,7 +2,28 @@ export type ParsedTransaction = {
   date: Date;
   description: string;
   amount: number; // signed: negative = despesa, positive = receita
+  externalId?: string; // ex: FITID do OFX — identificador estável do banco, quando disponível
 };
+
+/** Normaliza a descrição para comparação (minúsculas, sem espaços duplicados/nas pontas). */
+export function normalizeDescription(description: string): string {
+  return description.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Chave de deduplicação de um lançamento importado. Usa o identificador do
+ * banco (ex: FITID do OFX) quando disponível — é a forma mais confiável.
+ * Sem isso, cai para uma assinatura por data+valor+descrição: não é infalível
+ * (duas compras idênticas no mesmo dia colidem), mas cobre o caso real que
+ * importa — reimportar o mesmo extrato (ou um extrato com sobreposição de
+ * datas) não deve duplicar lançamento nenhum.
+ */
+export function computeDedupeKey(t: ParsedTransaction): string {
+  if (t.externalId) return `id:${t.externalId}`;
+  const day = t.date.toISOString().slice(0, 10);
+  const cents = Math.round(t.amount * 100);
+  return `sig:${day}:${cents}:${normalizeDescription(t.description)}`;
+}
 
 const DATE_KEYS = [
   "data",
@@ -150,6 +171,7 @@ export function parseOfxTransactions(text: string): ParsedTransaction[] {
     const memo = extractOfxTag(chunk, "MEMO");
     const name = extractOfxTag(chunk, "NAME");
     const trntype = extractOfxTag(chunk, "TRNTYPE");
+    const fitid = extractOfxTag(chunk, "FITID");
 
     if (!dtposted || !trnamt) continue;
 
@@ -160,7 +182,7 @@ export function parseOfxTransactions(text: string): ParsedTransaction[] {
     if (!date || isNaN(amount) || amount === 0) continue;
     if (isBalanceLine(description)) continue;
 
-    results.push({ date, description, amount });
+    results.push({ date, description, amount, externalId: fitid || undefined });
   }
 
   return results;
