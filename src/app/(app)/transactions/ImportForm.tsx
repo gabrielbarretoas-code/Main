@@ -58,6 +58,10 @@ export default function ImportForm({
           className="text-sm"
         />
       </div>
+      <label className="flex items-center gap-1.5 text-xs text-slate-500 pb-1.5">
+        <input type="checkbox" name="invertSign" />
+        Fatura mostra compras como valor positivo (inverter sinal)
+      </label>
       <button
         disabled={pending || accounts.length === 0}
         className="bg-slate-800 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-slate-900 disabled:opacity-50"
