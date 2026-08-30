@@ -3,6 +3,8 @@ import { parseEntity, ACCOUNT_TYPE_LABELS, type AccountType } from "@/lib/types"
 import { createAccount, deleteAccount } from "./actions";
 import { formatCurrency } from "@/lib/format";
 import { requireOrganizationId } from "@/lib/session";
+import PluggyConnectButton from "./PluggyConnectButton";
+import OpenFinanceConnectionsList, { type ConnectionRow } from "./OpenFinanceConnectionsList";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +15,18 @@ export default async function AccountsPage({
   const entity = parseEntity(sp.entity);
   const organizationId = await requireOrganizationId();
 
-  const accounts = await prisma.account.findMany({
-    where: { entity, organizationId },
-    orderBy: { createdAt: "asc" },
-  });
+  const [accounts, connections] = await Promise.all([
+    prisma.account.findMany({
+      where: { entity, organizationId },
+      include: { openFinanceLink: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.openFinanceConnection.findMany({
+      where: { entity, organizationId },
+      include: { accountLinks: { include: { account: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
   const balances = await Promise.all(
     accounts.map(async (a) => {
@@ -25,11 +35,30 @@ export default async function AccountsPage({
     })
   );
 
+  const connectionRows: ConnectionRow[] = connections.map((c) => ({
+    id: c.id,
+    institutionName: c.institutionName,
+    status: c.status,
+    lastSyncedAt: c.lastSyncedAt,
+    accountNames: c.accountLinks.map((l) => l.account.name),
+  }));
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">
         Contas — {entity === "PERSONAL" ? "Pessoal" : "Comercial"}
       </h1>
+
+      <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
+        <div>
+          <h2 className="font-medium">Open Finance</h2>
+          <p className="text-xs text-slate-500">
+            Conecte seu banco e traga contas e lançamentos automaticamente, sem digitar nada.
+          </p>
+        </div>
+        <PluggyConnectButton entity={entity} />
+        <OpenFinanceConnectionsList connections={connectionRows} />
+      </div>
 
       <div className="bg-white rounded-lg border border-slate-200 p-4">
         <h2 className="font-medium mb-3">Nova conta</h2>
@@ -84,6 +113,11 @@ export default async function AccountsPage({
                 {a.hasAutoInvest && (
                   <span className="ml-2 text-brand-navy bg-brand-gold-light px-1.5 py-0.5 rounded-full">
                     investimento automático
+                  </span>
+                )}
+                {a.openFinanceLink && (
+                  <span className="ml-2 text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                    Open Finance
                   </span>
                 )}
               </p>

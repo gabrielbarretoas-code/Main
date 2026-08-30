@@ -1,14 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import Papa from "papaparse";
 import { put, del } from "@vercel/blob";
 import { requireOrganizationId } from "@/lib/session";
 import type { Entity, TransactionType } from "@/lib/types";
 import {
-  computeDedupeKey,
   decodeFileText,
   detectFileKind,
   normalizeGenericRow,
@@ -17,7 +15,7 @@ import {
   parseXlsxRows,
   type ParsedTransaction,
 } from "@/lib/statementImport";
-import { suggestIsTransfer } from "@/lib/categorySuggestion";
+import { importTransactionRecords } from "@/lib/transactionImport";
 
 export async function createTransaction(formData: FormData) {
   const organizationId = await requireOrganizationId();
@@ -280,59 +278,14 @@ export async function importStatement(formData: FormData): Promise<ImportResult>
     transactions = transactions.map((t) => ({ ...t, amount: -t.amount }));
   }
 
-  // Nunca duplicar lançamento: cada linha importada ganha uma chave de
-  // deduplicação (FITID do banco quando disponível, senão uma assinatura por
-  // data+valor+descrição) e é comparada tanto com o que já existe na conta
-  // quanto com o restante deste mesmo arquivo antes de ser gravada.
-  const existingKeys = new Set(
-    (
-      await prisma.transaction.findMany({
-        where: { accountId, dedupeKey: { not: null } },
-        select: { dedupeKey: true },
-      })
-    ).map((t) => t.dedupeKey as string)
+  const { imported, duplicates, autoReconciled } = await importTransactionRecords(
+    organizationId,
+    accountId,
+    entity,
+    transactions,
+    "import",
+    account.hasAutoInvest
   );
-
-  let autoReconciled = 0;
-  let duplicates = 0;
-  const seenInBatch = new Set<string>();
-  const toCreate: Prisma.TransactionCreateManyInput[] = [];
-
-  for (const t of transactions) {
-    const dedupeKey = computeDedupeKey(t);
-    if (existingKeys.has(dedupeKey) || seenInBatch.has(dedupeKey)) {
-      duplicates++;
-      continue;
-    }
-    seenInBatch.add(dedupeKey);
-
-    const isKnownTransfer = account.hasAutoInvest && suggestIsTransfer(t.description);
-    if (isKnownTransfer) autoReconciled++;
-
-    toCreate.push({
-      description: t.description,
-      amount: Math.abs(t.amount),
-      type: t.amount < 0 ? "EXPENSE" : "INCOME",
-      entity,
-      date: t.date,
-      accountId,
-      organizationId,
-      source: "import",
-      isTransfer: isKnownTransfer,
-      reconciled: isKnownTransfer,
-      reconciledAt: isKnownTransfer ? new Date() : null,
-      reconciledBy: isKnownTransfer ? "system" : null,
-      dedupeKey,
-    });
-  }
-
-  if (toCreate.length > 0) {
-    // skipDuplicates é uma segunda camada de proteção contra corrida (duas
-    // importações simultâneas) — a filtragem acima já cobre o caso normal.
-    await prisma.transaction.createMany({ data: toCreate, skipDuplicates: true });
-  }
-
-  const imported = toCreate.length;
   const skipped = Math.max(rowCount - imported - duplicates, 0);
 
   revalidatePath("/transactions");

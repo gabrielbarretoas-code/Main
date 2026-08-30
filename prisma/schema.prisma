@@ -71,6 +71,7 @@ model Organization {
   loans                 Loan[]
   assets                Asset[]
   reminders             Reminder[]
+  openFinanceConnections OpenFinanceConnection[]
 }
 
 model User {
@@ -99,6 +100,7 @@ model Account {
   transactions   Transaction[]
   recurringTransactions RecurringTransaction[]
   loans          Loan[]
+  openFinanceLink OpenFinanceAccountLink?
 
   @@index([organizationId])
 }
@@ -280,4 +282,32 @@ model Reminder {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, entity])
+}
+
+model OpenFinanceConnection {
+  id              String    @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entity          Entity
+  pluggyItemId    String    @unique
+  institutionName String
+  status          String
+  statusDetail    String?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  accountLinks    OpenFinanceAccountLink[]
+
+  @@index([organizationId, entity])
+}
+
+model OpenFinanceAccountLink {
+  id              String   @id @default(cuid())
+  connectionId    String
+  connection      OpenFinanceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  pluggyAccountId String   @unique
+  accountId       String   @unique
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@index([connectionId])
 }
